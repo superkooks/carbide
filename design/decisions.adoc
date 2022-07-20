@@ -1,0 +1,187 @@
+= Design Decisions
+
+== About this document
+This document is not an exhaustive list of design decisions made.
+It functions as a place to describe the rationale for decisions that affect the service as a whole.
+
+
+== General
+Many of these decisions are based on properties charted in the https://docs.google.com/spreadsheets/d/1-UlA4-tslROBDS9IqHalWVztqZo7uxlCeKPQ-8uoFOU/edit#gid=0[Digital Communications Protocols Spreadsheet].
+
+[#opensource-client]
+=== Opensource client
+The client will be open source.
+
+This means that the cryptography can be trusted, and prevents me (or a law enforcement/intelligence agency) from changing the crypto from under you.
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Cryptography can be trusted.
+|May encourage custom clients, fracturing the ecosystem
+
+|Prevents me (or an intelligence agency) from changing the crypto from under you
+|
+|===
+
+=== Opensource server
+The server will be open source.
+
+This means that anyone can run their own server, just in case the worst happens.
+Probably the only realistic scenario is if I make a really unpopular move.
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Anyone can run their own server, just in case the worst happens.
+|May fracture the ecosystem
+|===
+
+=== Anonymous / Pseudonymous
+An external identifier (e.g. phone number) is not required to create an account.
+
+One of the biggest downsides of Signal is the requirement for a phone number.
+One, it ties your activity to an external identifier, and two, it means everyone needs a sim card in order to use the service (which goes against the idea of widespread adoption of strong encryption).
+
+It doesn't make much sense for a private and secure messaging app to require not just one of the least secure identifiers (think of the sim swap attack), but require you to give it out to people you want to speak to.
+Of course, if someone gets your phone number, the surface area of attack increases dramatically, just think of all the iMessage vulnerabilities.
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Doesn't tie your activity to an external identifier
+|Allows bots/spammers to easily create accounts (mitigated by making user discovery difficult)
+
+|Increases the adoption of strong encryption
+|
+
+|Increases privacy when you let people talk to you
+|
+|===
+
+=== Local messaging
+Local message will not be supported.
+
+Local messaging is the transmission of messages when the internet doesn't work.
+A possible case would be a solar storm knocking out power grids, or a serious BGP mishap.
+
+Local messaging just doesn't make sense.
+If the internet goes down, the only remaining widely available communication networks will be Bluetooth, and LAN.
+These do not have nearly enough range to offer any improvement over walking to the person you want to chat to.
+Perhaps Apple could get away with making a huge mesh network to transfer data, but we aren't so lucky.
+
+A possible use case would be if one community is isolated from another, one person can travel to another community to share the other's messages.
+This is a cool concept, but most people don't want to have a conversation with half hour round-trip times.
+The chance that an entire community will gather during some kind of blackout in order to send out someone to sync there messages is pretty small.
+If people really needed to talk to someone, they would find them in person.
+
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Allows users to (maybe) communicate when the internet goes down
+|Increases complexity significantly
+
+|
+|Increases user storage requirements
+|===
+
+=== Decentralization
+It will be centralized.
+
+WebRTC is a good guide to the challenges that peer-to-peer systems face.
+It uses STUN and TURN to allow users to communicate with each other directly.
+STUN allows two users behind NATs to connect to each other, as long as neither user has a symmetric NAT.
+TURN can be used in this case, which effectively just proxies the connection.
+Furthermore, WebRTC requires a signalling layer to transport its ICE candidates, which of course requires another public server.
+Even WebRTC is not fully decentralized.
+
+If servers with public ip addresses are required to connect peers to each other, it means the service cannot be fully decentralized.
+That leaves us to the goodwill of a few users, or perhaps a requirement for each group to run their own server.
+However, if we continue to optimize from that point, it just leaves us with a federated service.
+
+The one potential benefit of a decentralized system is much stronger censorship resistance over a federated or centralized service.
+With a centralized service (or even federated service with one large provider), the service could easily be shutdown by a court order.
+With a decentralized service, anyone can start their own server to allow the entire network to connect.
+However, a decentralized service could still be killed.
+A user cannot know which server to connect to, without first connecting to a central, well-known server, which is a clear point of failure.
+There is no way around the boot strapping problem.
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Partial censorship resistance (DoS)
+|Requires public servers
+
+|Partially reduces metadata exposure
+|Increases networking requirements
+
+|
+|Increases complexity significantly
+
+|
+|May require a synchronous protocol (all parties must be online to receive a message)
+|===
+
+=== Federation
+It will not be federated.
+
+There is a really good https://signal.org/blog/the-ecosystem-is-moving/[article] by the founder of Signal, Moxie Marlinspike, on federation.
+Basically, federation has all the downsides of decentralization, (a fixed, unchanging protocol that is stuck in time), and the downsides of centralization (metadata is still being shared with huge providers).
+
+Another example I would like to bring up is Matrix, which is a much more recent protocol than XMPP.
+We can see this same pattern developing in even it.
+The most common provider (or homeserver, in Matrix parlance) by far, is matrix.org itself.
+This means that users lose the benefit of federation (the control over metadata), and it set the protocol in stone, as all servers must support the protocol in its current form.
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|(Potential) control over metadata
+|Prevents changes to protocol (necessary in an accelerating ecosystem)
+
+|Partial censorship resistance (DoS)
+|Increases complexity
+|===
+
+=== Open spec
+The specification for the protocol will be open.
+
+This will allow so many more possibilities for developers to further improve the ecosystem (e.g. bots).
+Since the client will be <<opensource-client,open source>> anyway, it doesn't make sense to try hide it.
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Allows developers to improve the ecosystem
+|May encourage custom clients and incompatible, derivative specs, fracturing the ecosystem
+
+|Can't exactly be kept a secret anyway, given the client is <<opensource-client,open source>>
+|
+
+|Encourages community to work together to improve security and add features
+|
+|===
+
+=== Device Compatibility
+[cols=2*]
+|===
+|Web
+|The application will be web-native.
+
+|Desktop
+|Desktop will be supported with an Electron app. Unfortunately this is the easiest way to achieve cross-platform support.
+
+|Mobile
+|Mobile will be supported using a PWA. It makes it super easy to make a near-native app, without the hassle of dealing with the platforms individually. Unfortunately for iOS users, this means they will be unable to receive push notifications until someone buys an Apple Developer License. Sorry, I don't make the rules around here. Blame Apple.
+
+|Terminal
+|Initially, terminal will not be supported. However support could be eventually incorporated. Focus should initially remain on the other clients, as they will make up 95% of users and have very significant code-sharing in terms of the front-end. Terminal will have almost nothing in common with them except for the cryptography, so it makes very little sense to start working on them until the other clients work.
+|===
