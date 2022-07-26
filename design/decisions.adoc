@@ -170,6 +170,23 @@ Since the client will be <<opensource-client,open source>> anyway, it doesn't ma
 |
 |===
 
+=== Post-quantum security
+It will be secure against quantum computers.
+
+Both elliptic curve cryptography and RSA are at risk of being broken by 2030.
+It is estimated that the number of qubits required to break Curve25519 is only around 2330. footnote:[https://arxiv.org/pdf/1706.06752.pdf[Quantum Resource Estimates for Computing Elliptic Curve Discrete Logarithms]]
+As of 2022, the largest number of qubits every produced is 216, by Xanadu's Borealis.
+If we estimate the number of qubits to double every 2 years (which it https://en.wikipedia.org/wiki/List_of_quantum_processors[does]), then by 2030, we will likely have enough qubits to break Curve25519.
+Another 2 or 4 years later, and we will have enough to break 4096-bit RSA.
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Means your messages will be safe after 2030
+|Increases complexity
+|===
+
 === Device Compatibility
 [cols=2*]
 |===
