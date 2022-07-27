@@ -1,0 +1,4 @@
+= Terminology
+
+*User:* A person using the service. Preferred over party, peer, or client
+*Device:* A client running on a device. Preferred over client.

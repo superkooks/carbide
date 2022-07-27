@@ -1,6 +1,10 @@
 = Encryption
+:toc:
+:stem: latexmath
 
 == The Rye Algorithm
+=== Introduction
+
 === Symmetric-key ratchet 
 This part describes a symmetric-key ratchet that is an exact copy of the Signal protocol's symmetric-key ratchet.
 
@@ -23,8 +27,53 @@ When a party receives this message, they shall:
 . Advance the root ratchet with the decrypted keys (hmac)
 . Use the output from advancing the ratchet as the root key for a new symmetric-key ratchet
 
+=== Message formats
+==== Constants
+----
+MsgType:
+0x00 - Normal
+0x01 - Ratchet update
+----
+
+==== Message
+The format of normal encrypted data.
+[subs=normal]
+----
+UUID:         128-bit UUID of the sender
+MsgType:      Message type as defined in <<_constants>>
+Nonce:        Nonce for encryption of payload
+Payload:      Encrypted payload
+Signature:    EC signature over all preceding bytes in message
+SignaturePQ:  Post-quantum signature over the same bytes as Signature
+
+M = UUID || MsgType || Nonce || Payload || Signature || SignaturePQ
+----
+
+==== Ratchet update
+The format of a ratchet update
+----
+UUID:             128-bit UUID of the targeted user
+KeyCiphertext:    The ciphertext resulting from the encapsulation of the DH part of the root ratchet update
+KeyCiphertextPQ:  The ciphertext resulting from the encapsulation of the Kyber part of the root ratchet update
+
+Update[n] = UUID || KeyCiphertext || KeyCiphertextPQ
+----
+[subs=normal]
+----
+UUID:         128-bit UUID of the sender
+MsgType:      Message type as defined in <<_constants>>
+Updates:      The number of subsequent Update
+Updates[]:    A slice (array) of updates (defined above)
+Signature:    EC signature over all preceding bytes in message
+SignaturePQ:  Post-quantum signature over the same bytes as Signature
+
+M = UUID || MsgType || Pubkey || PubkeyPQ || UpdatesLen || Updates[0] || ... || Updates[n-1] || Signature || SignaturePQ
+----
+
+=== Security considerations
+
 == Primitives
-All primitives should have at least 128-bit post quantum security
+All primitives should have at least 128-bit post quantum security.
 
 [cols=5*]
 |===
@@ -33,20 +82,20 @@ All primitives should have at least 128-bit post quantum security
 |PBKDF
 |Argon2id
 |golang.org/x/crypto/argon2
-|
-|
+|n/a
+|n/a
 
-|Hash
+|Hash - `NOT USED`
 |SHA-256
 |crypto/sha256
-|
-|
+|128 (collision)
+|85 (collision)
 
 |KDF for symmetric ratchet
 |HMAC-SHA256
 |crypto/hmac & crypto/sha256
-|
-|
+|256 (preimage resistance of sha256)
+|128 (preimage resistance of sha256)
 
 |Symmetric Encryption
 |XSalsa20 with Poly1305
@@ -70,12 +119,12 @@ All primitives should have at least 128-bit post quantum security
 |Ed25519
 |github.com/cloudflare/circl
 |128
-|0 (mitigated by post-quantum key exchange)
+|0 (mitigated by post-quantum signature)
 
 |Post-quantum signature
 |Dilithium Mode 2
 |github.com/cloudflare/circl
-|0 (algorithm is not thoroughly tested, mitigated by pre-quantum key exchange)
+|0 (algorithm is not thoroughly tested, mitigated by pre-quantum signature)
 |128
 
 |===

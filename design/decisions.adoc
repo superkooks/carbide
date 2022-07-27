@@ -1,4 +1,5 @@
 = Design Decisions
+:toc:
 
 == About this document
 This document is not an exhaustive list of design decisions made.

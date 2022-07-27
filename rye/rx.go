@@ -15,14 +15,26 @@ import (
 type RxSession struct {
 	Parent *TxSession
 
-	SigningPubkey   ed25519.PrivateKey
-	SigningPubkeyPQ mode2.PrivateKey
+	VerifyingPubkey   ed25519.PublicKey
+	VerifyingPubkeyPQ mode2.PublicKey
 
 	Symmetric *SymRatchet
 	Root      *RootRatchet
+}
 
-	CurrentPubkey   x25519.Key
-	CurrentPubkeyPQ kyber768.PublicKey
+func (r *RxSession) DecryptMessage(msg []byte) {
+	// Verify both signatures
+	dataEnd := len(msg) - 1 - ed25519.SignatureSize - mode2.SignatureSize
+
+	ok := ed25519.Verify(r.VerifyingPubkey, msg[:dataEnd], msg[dataEnd:dataEnd+ed25519.SignatureSize])
+	if !ok {
+		panic("failed to verify ed25519 signature")
+	}
+
+	ok = mode2.Verify(&r.VerifyingPubkeyPQ, msg[:dataEnd], msg[len(msg)-1-mode2.SignatureSize:len(msg)-1])
+	if !ok {
+		panic("failed to verify dilithium mode2 signature")
+	}
 }
 
 func (r *RxSession) UpdateSymmetric(newPub x25519.Key, newPubPQ kyber768.PublicKey, dhIn DHKeyCiphertext, kyberIn KyberKeyCiphertext) {
