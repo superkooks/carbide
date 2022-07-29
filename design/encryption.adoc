@@ -56,13 +56,13 @@ UUID:             128-bit UUID of the targeted user
 KeyCiphertext:    The ciphertext resulting from the encapsulation of the DH part of the root ratchet update
 KeyCiphertextPQ:  The ciphertext resulting from the encapsulation of the Kyber part of the root ratchet update
 
-Update[n] = UUID || KeyCiphertext || KeyCiphertextPQ
+Updates[n] = UUID || KeyCiphertext || KeyCiphertextPQ
 ----
 [subs=normal]
 ----
 UUID:         128-bit UUID of the sender
 MsgType:      Message type as defined in <<_constants>>
-Updates:      The number of subsequent Update
+UpdatesLen:   The number of subsequent Update
 Updates[]:    A slice (array) of updates (defined above)
 Signature:    EC signature over all preceding bytes in message
 SignaturePQ:  Post-quantum signature over the same bytes as Signature
