@@ -30,7 +30,7 @@ type RxSession struct {
 
 func (r *RxSession) ReceiveMessage(msg []byte) []byte {
 	// Verify both signatures
-	m := new(Message)
+	m := new(Data)
 	m.Unmarshal(bytes.NewBuffer(msg))
 	dataEnd := len(msg) - ed25519.SignatureSize - mode2.SignatureSize
 
@@ -46,7 +46,7 @@ func (r *RxSession) ReceiveMessage(msg []byte) []byte {
 
 	// Switch on message type
 	switch m.MsgType {
-	case MSG_TYPE_NORMAL:
+	case MSG_TYPE_DATA:
 		key := r.Symmetric.Advance()
 
 		plain, ok := secretbox.Open(nil, m.Payload, &m.Nonce, (*[32]byte)(&key))

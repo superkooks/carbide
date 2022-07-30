@@ -1,9 +1,26 @@
 = Encryption
 :toc:
-:stem: latexmath
 
-== The Rye Algorithm
-=== Introduction
+== The Buckwheat Ratchet
+=== Background
+The Buckwheat Ratchet builds on both Signal's Double Ratchet Algorithm, and Matrix's Megolm Group Ratchet.
+
+The Double Ratchet Algorithm is unsuitable, as it requires that users encrypt their messages to each recipient in a group, which could be over 1000 people.
+The Megolm Group Ratchet fixes this by having one outbound ratchet, and many inbound ratchets.
+However, it doesn't have a mechanism for break-in recovery, and only provides "partial" forward secrecy.
+
+The Buckwheat Ratchet takes the best from both ratchets.
+It provides break-in recovery and forward secrecy, while maintaining a single outbound session.
+
+=== Overview
+Each user maintains an outbound session for encrypting their own messages, and an inbound session for each user.
+Each session contains a root ratchet, a symmetric ratchet, a UUID.
+A "TX" session additionally contains signing keys (EC and PQ) and key exchange privkeys (EC and PQ).
+A "RX" session additionally contains verifying keys (EC and PQ) and key exchange pubkeys (EC and PQ), which both correspond to the pubkeys of the sender's tx sesion. For each sender, all user's RX sessions should be identical.
+
+Every message is signed with Ed25519 and Dilithium2 signatures.
+Forward secrecy is provided by the ratchets.
+Break-in recovery is provided by exchanging new keypairs, as shown in <<_root_key_ratchet>>.
 
 === Symmetric-key ratchet 
 This part describes a symmetric-key ratchet that is an exact copy of the Signal protocol's symmetric-key ratchet.
@@ -27,15 +44,30 @@ When a party receives this message, they shall:
 . Advance the root ratchet with the decrypted keys (hmac)
 . Use the output from advancing the ratchet as the root key for a new symmetric-key ratchet
 
+=== Session initiation
+In order for a person to be added to a group, they must receive copies of symmetric and root ratchets for each user.
+The group must also create a new "RX" session for them, with verifying keys and a new symmetric and root ratchet.
+
+For security purposes, no message can be sent that can trigger buckwheat to create a new rx session which would be used as a recipient for encrypted messages.
+Instead, the application must make an API call.
+
+Session initation requires the following steps:
+
+. Each user generates an ephemeral DH and kyber keypair, and uploads their public key to the server
+. Each user retrieves the other's public keys, and hashes all public keys together. Both users then verify they have the same hash. (This prevents MITM attacks)
+. The original user packages up their RX sessions and sends it to the new user, encrypting it with a key derived from the shared secrets of DH and kyber
+. The new user generates a new TX session (including uuid, signing and key exchange keys, and new ratchets) and sends the public values to the original user
+. The original user sends a "create user" message to the group, with the new rx session attached.
+
 === Message formats
 ==== Constants
 ----
 MsgType:
-0x00 - Normal
+0x00 - Data
 0x01 - Ratchet update
 ----
 
-==== Message
+==== Data
 The format of normal encrypted data.
 [subs=normal]
 ----

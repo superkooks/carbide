@@ -32,7 +32,7 @@ type TxSession struct {
 }
 
 func (t *TxSession) SendMessage(msg []byte, w io.Writer) {
-	m := Message{SenderID: t.UUID, MsgType: MSG_TYPE_NORMAL}
+	m := Data{SenderID: t.UUID, MsgType: MSG_TYPE_DATA}
 	io.ReadFull(rand.Reader, m.Nonce[:])
 
 	key := t.Symmetric.Advance()

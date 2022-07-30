@@ -1,4 +1,4 @@
-module spelt/rye
+module spelt/buckwheat
 
 go 1.18
 

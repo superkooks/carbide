@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	MSG_TYPE_NORMAL = iota
+	MSG_TYPE_DATA = iota
 	MSG_TYPE_RATCHET_UPDATE
 )
 
 // A normal message containing encrypted data
-type Message struct {
+type Data struct {
 	SenderID uuid.UUID
 	MsgType  byte
 	Nonce    [24]byte
@@ -28,7 +28,7 @@ type Message struct {
 	SignaturePQ DiLiSignature
 }
 
-func (m *Message) Marshal(w io.Writer) {
+func (m *Data) Marshal(w io.Writer) {
 	w.Write(m.SenderID[:])
 	w.Write([]byte{m.MsgType})
 	w.Write(m.Nonce[:])
@@ -37,7 +37,7 @@ func (m *Message) Marshal(w io.Writer) {
 	w.Write(m.SignaturePQ[:])
 }
 
-func (m *Message) Sign(ed ed25519.PrivateKey, dili mode2.PrivateKey) {
+func (m *Data) Sign(ed ed25519.PrivateKey, dili mode2.PrivateKey) {
 	b := new(bytes.Buffer)
 	m.Marshal(b)
 
@@ -50,7 +50,7 @@ func (m *Message) Sign(ed ed25519.PrivateKey, dili mode2.PrivateKey) {
 	mode2.SignTo(&dili, msg, m.SignaturePQ[:])
 }
 
-func (m *Message) Unmarshal(r io.Reader) {
+func (m *Data) Unmarshal(r io.Reader) {
 	io.ReadFull(r, m.SenderID[:])
 
 	b := make([]byte, 1)

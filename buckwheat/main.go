@@ -32,6 +32,11 @@ func main() {
 	alice.SendMessage([]byte("hello world"), b)
 	out := bob.Children[0].ReceiveMessage(b.Bytes())
 	fmt.Println(string(out))
+
+	b = new(bytes.Buffer)
+	bob.SendMessage([]byte("hi"), b)
+	out = alice.Children[0].ReceiveMessage(b.Bytes())
+	fmt.Println(string(out))
 }
 
 func GenTX() *TxSession {
