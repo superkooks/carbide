@@ -1,0 +1,44 @@
+# State and mutations
+
+## State
+All of the state for each guild is stored in a JSON object, with the exception of <<_messages>>.
+The state is mutated by mutations.
+
+## Mutations
+Mutations are represented by a method, path, and (optionally), an object.
+The object must be the entire object, containing all fields.
+
+There are 3 methods: `INSERT`, `UPDATE`, `DELETE`
+
+NOTE: The `id` field of an object should never be updated, but must be included as a field.
+
+```
+{
+    "method": "INSERT",
+    "path": ".messages",
+    "object": {
+        "id": "1234567890"
+        ...
+        "content": "New message content"
+    }
+}
+
+{
+    "method": "UPDATE",
+    "path": ".messages.1234567890",
+    "object": {
+        "id": "1234567890"
+        ...
+        "content": "Updated message content"
+    }
+}
+
+{
+    "method": "DELETE",
+    "path": ".messages.1234567890"
+}
+```
+
+## Messages
+Messages are batched into groups of 500.
+They are retrieved by batch when necessary, in order to reduce memory consumption and speed up indexing.
