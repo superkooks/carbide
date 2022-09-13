@@ -32,7 +32,7 @@ When a party wants to update the chain/root key of their symmetric ratchet, they
 . Generate a new DH and kyber keypair
 . For each user in the group, calculate the shared secret of their current pubkey with our new privkey (dh)
 . For each user in the group, encrypt a new random key with a HKDF derived key from above shared secret (dh) and encrypt a random key using kyber kem.
-. Send a message our new public key and each encrypted key (labelled with the corresponding recipient) (the message should be signed)
+. Send a message with our new public key and each encrypted key (labelled with the corresponding recipient) (the message should be signed)
 . Advance the root ratchet with the random keys encrypted with kyber and dh shared secrets (hmac)
 . Use the output from advancing the ratchet as the root key for a new symmetric-key ratchet
 
@@ -68,7 +68,7 @@ MsgType:
 ----
 
 ==== Data
-The format of normal encrypted data.
+The format of normal encrypted data. 
 [subs=normal]
 ----
 UUID:         128-bit UUID of the sender
@@ -94,7 +94,7 @@ Updates[n] = UUID || KeyCiphertext || KeyCiphertextPQ
 ----
 UUID:         128-bit UUID of the sender
 MsgType:      Message type as defined in <<_constants>>
-UpdatesLen:   The number of subsequent Update
+UpdatesLen:   The number of subsequent Update (big endian, 64-bit)
 Updates[]:    A slice (array) of updates (defined above)
 Signature:    EC signature over all preceding bytes in message
 SignaturePQ:  Post-quantum signature over the same bytes as Signature
@@ -102,10 +102,41 @@ SignaturePQ:  Post-quantum signature over the same bytes as Signature
 M = UUID || MsgType || Pubkey || PubkeyPQ || UpdatesLen || Updates[0] || ... || Updates[n-1] || Signature || SignaturePQ
 ----
 
+=== Export format
+==== TX Session
+The format of an exported tx session
+----
+UUID:              128-bit UUID of the tx session
+SigningKey:        EC private key used for signing messages
+SigningKeyPQ:      Post-quantum private key used for signing messages
+SymmetricRatchet:  Current chain key of the symmetric ratchet
+RootRatchet:       Current chain key of the root ratchet
+CurPrivkey:        Current DH private key for receiving ratchet updates
+CurPrivkeyPQ:      Current post-quantum private key for receiving ratchet updates
+RxSessionsLen:     The number of subsequent RxSessions (big endian, 64-bit)
+RxSession[n]:      A slice (array) of RxSessions (defined below)
+
+M = UUID || SigningKey || SigningKeyPQ || SymmetricRatchet || RootRatchet || CurPrivkey || CurPrivkeyPQ || CurPubkeyPQ || RxSessionsLen || RxSessions[0] || ... || RxSessions[n-1]
+----
+
+==== RX Session
+The format of an exported rx session
+----
+UUID:              128-bit UUID of sender to this rx session
+VerifyingKey:      EC public key used for verifying signed messages
+VerifyingKeyPQ:    Post-quantum public key used for verifying signed messages
+SymmetricRatchet:  Current chain key of the symmetric ratchet
+RootRatchet:       Current chain key of the root ratchet
+CurPubkey:         Current DH public key used for sending ratchet updates
+CurPubkeyPQ:       Current post-quantum public key used for sending ratchet updates
+
+M = UUID || VerifyingKey || VerifyingKeyPQ || SymmetricRatchet || RootRatchet || CurPubkey || CurPubkeyPQ
+----
+
 === Security considerations
 
 == Primitives
-All primitives should have at least 128-bit post quantum security.
+All primitives should have at least 128-bit pre- and post-quantum security.
 
 [cols=5*]
 |===

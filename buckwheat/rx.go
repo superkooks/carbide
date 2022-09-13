@@ -106,3 +106,45 @@ func (r *RxSession) UpdateSymmetric(newPub x25519.Key, newPubPQ kyber768.PublicK
 	// Generate new symmetric ratchet
 	r.Symmetric = NewSymRatchet(chain)
 }
+
+func (r *RxSession) Export(w io.Writer) {
+	w.Write(r.UUID[:])
+	w.Write(r.VerifyingPubkey)
+	w.Write(r.VerifyingPubkeyPQ.Bytes())
+	w.Write(r.Symmetric.current[:])
+	w.Write(r.Root.current[:])
+	w.Write(r.CurrentPubkey[:])
+
+	curPubPQ := make([]byte, kyber768.PublicKeySize)
+	r.CurrentPubkeyPQ.Pack(curPubPQ)
+	w.Write(curPubPQ)
+}
+
+func ImportRx(i io.Reader) *RxSession {
+	r := new(RxSession)
+
+	i.Read(r.UUID[:])
+
+	r.VerifyingPubkey = make(ed25519.PublicKey, ed25519.PublicKeySize)
+	i.Read(r.VerifyingPubkey)
+
+	var verPubPQ [mode2.PublicKeySize]byte
+	i.Read(verPubPQ[:])
+	r.VerifyingPubkeyPQ.Unpack(&verPubPQ)
+
+	var symChain ChainKey
+	i.Read(symChain[:])
+	r.Symmetric = NewSymRatchet(symChain)
+
+	var rootChain ChainKey
+	i.Read(rootChain[:])
+	r.Root = NewRootRatchet(rootChain)
+
+	i.Read(r.CurrentPubkey[:])
+
+	curPubPQ := make([]byte, kyber768.PublicKeySize)
+	i.Read(curPubPQ)
+	r.CurrentPubkeyPQ.Unpack(curPubPQ)
+
+	return r
+}

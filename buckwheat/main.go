@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"crypto/rand"
-	"fmt"
 	"io"
 
 	"github.com/cloudflare/circl/dh/x25519"
@@ -14,32 +12,36 @@ import (
 )
 
 func main() {
-	alice := GenTX()
-	bob := GenTX()
+	// alice := GenTx()
+	// bob := GenTx()
 
-	RXFromTX(bob, alice)
-	RXFromTX(alice, bob)
+	// RxFromTx(bob, alice)
+	// RxFromTx(alice, bob)
 
-	b := new(bytes.Buffer)
-	alice.GenerateUpdate(b)
-	bob.Children[0].ReceiveMessage(b.Bytes())
+	// b := new(bytes.Buffer)
+	// alice.GenerateUpdate(b)
+	// bob.Children[0].ReceiveMessage(b.Bytes())
 
-	b = new(bytes.Buffer)
-	bob.GenerateUpdate(b)
-	alice.Children[0].ReceiveMessage(b.Bytes())
+	// b = new(bytes.Buffer)
+	// bob.GenerateUpdate(b)
+	// alice.Children[0].ReceiveMessage(b.Bytes())
 
-	b = new(bytes.Buffer)
-	alice.SendMessage([]byte("hello world"), b)
-	out := bob.Children[0].ReceiveMessage(b.Bytes())
-	fmt.Println(string(out))
+	// b = new(bytes.Buffer)
+	// alice.SendMessage([]byte("hello world"), b)
+	// out := bob.Children[0].ReceiveMessage(b.Bytes())
+	// fmt.Println(string(out))
 
-	b = new(bytes.Buffer)
-	bob.SendMessage([]byte("hi"), b)
-	out = alice.Children[0].ReceiveMessage(b.Bytes())
-	fmt.Println(string(out))
+	// b = new(bytes.Buffer)
+	// bob.SendMessage([]byte("hi"), b)
+	// out = alice.Children[0].ReceiveMessage(b.Bytes())
+	// fmt.Println(string(out))
+
+	genGlobalJS()
+	c := make(chan int)
+	<-c
 }
 
-func GenTX() *TxSession {
+func GenTx() *TxSession {
 	t := &TxSession{UUID: uuid.New()}
 
 	// Ratchets
@@ -70,7 +72,7 @@ func GenTX() *TxSession {
 	return t
 }
 
-func RXFromTX(local, remote *TxSession) {
+func RxFromTx(local, remote *TxSession) {
 	var pub x25519.Key
 	x25519.KeyGen(&pub, &remote.CurrentPrivkey)
 
