@@ -40,5 +40,5 @@ NOTE: The `id` field of an object should never be updated, but must be included 
 ```
 
 ## Messages
-Messages are batched into groups of 500.
+Messages are batched into groups of 500 KiB, with the remaining bytes padded with zeroes.
 They are retrieved by batch when necessary, in order to reduce memory consumption and speed up indexing.
