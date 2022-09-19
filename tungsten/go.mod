@@ -1,4 +1,4 @@
-module spelt/buckwheat
+module carbide/tungsten
 
 go 1.18
 

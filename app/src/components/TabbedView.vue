@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineProps, reactive } from "vue";
+import { reactive } from "vue";
 
 const props = defineProps<{ tabs: string[], active: boolean }>();
 

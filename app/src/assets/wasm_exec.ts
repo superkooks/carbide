@@ -35,7 +35,7 @@ declare global {
     fs: any
     process: any
 
-    buckwheat: {
+    tungsten: {
       // All string types are base64
       genTX: () => TxSession
       importTx: (tx: string) => TxSession

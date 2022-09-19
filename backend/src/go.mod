@@ -1,4 +1,4 @@
-module spelt/backend/src
+module carbide/backend/src
 
 go 1.19
 

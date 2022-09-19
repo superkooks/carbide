@@ -11,10 +11,15 @@ import (
 )
 
 const DB_HOST = "127.0.0.1"
-const DB_NAME = "spelt"
+const DB_NAME = "carbide"
 
 var db *mongo.Database
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		// TODO: fix this
+		return true
+	},
+}
 
 func main() {
 	// Connect to database

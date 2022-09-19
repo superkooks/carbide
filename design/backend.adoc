@@ -8,7 +8,7 @@ To facilitate this, the backend servers are sharded by guild, allowing each serv
 All encrypted messages are stored in MongoDB.
 
 The messages are stored in chronological order per guild indexed by timestamp.
-Internally, we have a `messages` collection in the `spelt` database.
+Internally, we have a `messages` collection in the `carbide` database.
 Documents have a `guildID`, `ts`, and `message` fields.
 
 == Protocol
@@ -31,7 +31,7 @@ Subscribe the client to the specified guilds.
 [subs=normal]
 ----
 EvtType:       0x01 - Subscribe guilds
-GuildCount:    The number of guilds to subscribe to
+GuildCount:    The number of guilds to subscribe to (big endian, 64-bit)
 GuildUUID[n]:  The UUID of a guild to subscribe to
 
 M = EvtType || GuildCount || GuildUUID[0] || ... || GuildUUID[n-1]

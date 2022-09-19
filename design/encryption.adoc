@@ -1,15 +1,15 @@
 = Encryption
 :toc:
 
-== The Buckwheat Ratchet
+== The Tungsten Ratchet
 === Background
-The Buckwheat Ratchet builds on both Signal's Double Ratchet Algorithm, and Matrix's Megolm Group Ratchet.
+The Tungsten Ratchet builds on both Signal's Double Ratchet Algorithm, and Matrix's Megolm Group Ratchet.
 
 The Double Ratchet Algorithm is unsuitable, as it requires that users encrypt their messages to each recipient in a group, which could be over 1000 people.
 The Megolm Group Ratchet fixes this by having one outbound ratchet, and many inbound ratchets.
 However, it doesn't have a mechanism for break-in recovery, and only provides "partial" forward secrecy.
 
-The Buckwheat Ratchet takes the best from both ratchets.
+The Tungsten Ratchet takes the best from both ratchets.
 It provides break-in recovery and forward secrecy, while maintaining a single outbound session.
 
 === Overview
@@ -48,7 +48,7 @@ When a user receives this message, they shall:
 In order for a person to be added to a group, they must receive copies of symmetric and root ratchets for each user.
 The group must also create a new "RX" session for them, with verifying keys and a new symmetric and root ratchet.
 
-For security purposes, no message can be sent that can trigger buckwheat to create a new rx session which would be used as a recipient for encrypted messages.
+For security purposes, no message can be sent that can trigger tungsten to create a new rx session which would be used as a recipient for encrypted messages.
 Instead, the application must make an API call.
 
 Session initation requires the following steps:
@@ -129,7 +129,7 @@ M = UUID || VerifyingKey || VerifyingKeyPQ || SymmetricRatchet || RootRatchet ||
 === Security considerations
 
 == Multi-device support
-Multiple devices can be supported using a buckwheat group between each of them.
+Multiple devices can be supported using a tungsten group between each of them.
 When new key material is generated, it is supplied to the rest of the group, so they derive the same keys as the local device.
 The materials are timestamped, so that if other devices are offline, they can reconstruct the chronology of other sessions.
 

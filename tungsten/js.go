@@ -7,7 +7,7 @@ import (
 )
 
 // The signatures of all these functions are available under
-// buckwheat in /app/src/assets/wasm_exec.ts
+// tungsten in /app/src/assets/wasm_exec.ts
 
 func genGlobalJS() {
 	obj := js.ValueOf(map[string]interface{}{})
@@ -18,7 +18,7 @@ func genGlobalJS() {
 	// TODO: Remove temp functions
 	obj.Set("doubleTx", js.FuncOf(doubleTxWrapped))
 
-	js.Global().Set("buckwheat", obj)
+	js.Global().Set("tungsten", obj)
 }
 
 func genTxWrapped(this js.Value, args []js.Value) any {
