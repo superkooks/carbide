@@ -40,8 +40,9 @@ Probably the only realistic scenario is if I make a really unpopular move.
 |May fracture the ecosystem
 |===
 
+[#identifier]
 === Anonymous / Pseudonymous
-An external identifier (e.g. phone number) is not required to create an account.
+An external identifier (e.g. email, phone number) is not required to create an account.
 
 One of the biggest downsides of Signal is the requirement for a phone number.
 One, it ties your activity to an external identifier, and two, it means everyone needs a sim card in order to use the service (which goes against the idea of widespread adoption of strong encryption).
@@ -203,3 +204,51 @@ Another 2 or 4 years later, and we will have enough to break 4096-bit RSA.
 |Terminal
 |Initially, terminal will not be supported. However support could be eventually incorporated. Focus should initially remain on the other clients, as they will make up 95% of users and have very significant code-sharing in terms of the front-end. Terminal will have almost nothing in common with them except for the cryptography, so it makes very little sense to start working on them until the other clients work.
 |===
+
+
+== Frontend
+=== Security
+The weak point of any end-to-end encrypted service is the client itself.
+If the client is compromised, then it is impossible to deliver a secure service.
+It is also impossible detect a compromise (or lack thereof) with any certainty, as the client sits behind the operating system.
+
+However, assuming the client's operating system is intact, we can secure ourselves against the more trivial attacks.
+
+==== Desktop
+Electron apps are particularly vulnerable, as they have app.asar files that can be trivially changed without admin permission, granting the attacker complete control over the application, and persistence, without even escalating.
+This issue can't even be solved by signing the executable, as the app.asar file is not integrity checked.
+
+This issue could potentially be solved using https://tauri.app/[Tauri], which packages all application data in one monolithic binary, and has numerous other security measures.
+It also significantly reduces bundle size, by not including an entire chromium binary.
+
+For the highest security, the user should clone the desktop app, and the webapp source code, and checkout the latest release.
+The user should verify the integrity of the files received by checking the signature.
+The user can then build the webapp and desktop app (and preferably store the checksum for later comparison).
+The desktop app embeds the web assets and serves them for them.
+
+This process reduces the reliance on external parties to 0.
+By using only opensource code, we avoid any compromised CI/CD servers and other supply-chain attacks.
+Integrity checks prevent a MiTM and allow the code to be approved by any third party that the user trusts.
+The process also provides a simple way to check integrity of the binary, which prevents most trivial attacks.
+Of course, an attacker could still attach a debugger or use a rootkit, etc. to attack the application.
+The user is still responsible for keeping their system safe.
+
+==== Mobile
+On mobile, where we use PWAs, we cannot rely on our own server to serve requests for assets.
+Instead we must cache them locally, using https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API[Service Workers].
+
+The process for installing the PWA is much the same as for desktop, but instead of cloning the desktop app, the PWA can be installed using the assets served from a desktop hosting the webapp, which are then cached locally.
+
+Unfortately, the integrity of these assets cannot be fully verified by the user, as they may have been altered by another app, and most phones do not provide a mechanism to calculate checksums.
+Of course, even if this were the case, a rootkit or debugger would still allow an attacker to attack the application.
+
+== Backend
+
+[#backend-noauth]
+=== No Authentication
+Clients are not authenticated when they connect to the backend.
+Since the client should be performing authentication and authorization for all requests anyway, the server does not need to authenticate the user. Further, because clients' identity is not tied to any external <<identifier,identifier>>, there is no barrier to create new accounts, which would ordinarily slow down attackers.
+
+The only other purpose of authentication is to prevent bad actors.
+A possible attack would be to fill up a guild with bogus messages and waste client's bandwidth.
+This can be fixed by allowing users in the guild to authorize others to send messages to the guild in a append-only fashion. This doesn't mean all users can invite others, as clients will still drop any unexpected messages. It also doesn't allow users to block others, because it is append-only. 

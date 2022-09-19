@@ -1,0 +1,50 @@
+= Backend
+
+== Architecture
+Since all clients must maintain the exact same state, messages must be delivered in-order.
+To facilitate this, the backend servers are sharded by guild, allowing each server to maintain the exact order of messages.
+
+== Database 
+All encrypted messages are stored in MongoDB.
+
+The messages are stored in chronological order per guild indexed by timestamp.
+Internally, we have a `messages` collection in the `spelt` database.
+Documents have a `guildID`, `ts`, and `message` fields.
+
+== Protocol
+The webapp talks to the backend over websockets.
+
+Events are sent as `websocket.BinaryMessage`, as the underlying encrypted messages are, of course, binary.
+
+=== Data
+[subs=normal]
+----
+EvtType:  0x00 - Data
+UUID:     128-bit UUID of the guild
+Message:  The bytes of the message itself
+
+M = MsgType || UUID || Message
+----
+
+=== Subscribe guilds
+Subscribe the client to the specified guilds.
+[subs=normal]
+----
+EvtType:       0x01 - Subscribe guilds
+GuildCount:    The number of guilds to subscribe to
+GuildUUID[n]:  The UUID of a guild to subscribe to
+
+M = EvtType || GuildCount || GuildUUID[0] || ... || GuildUUID[n-1]
+----
+
+=== Add user
+Add the specified user to the append-only allowed users list, as described xref:decisions#backend-noauth[here].
+[subs=normal]
+----
+EvtType:    0x02 - Add user
+GuildUUID:  128-bit UUID of the guild
+UserUUID:   128-bit UUID of the user
+Message:  The bytes of the message itself
+
+M = MsgType || GuildUUID || UserUUID
+----

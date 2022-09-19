@@ -1,5 +1,25 @@
 = Terminology
 
-*User:* A person using the service. Preferred over party, peer, or client
-*Device:* A client running on a device. Preferred over client.
-*PQ:* Post-quantum
+[cols="1,5"]
+|===
+|*User*
+|A person using the service. Preferred over party or peer.
+
+|*Client*
+|An instance of the application running on a user's device.
+
+|*PQ*
+|Post-quantum
+
+|*Event*
+|A piece of data transfered between the client and backend
+
+|*Message*
+|A piece of data transfered between clients
+
+|*Mutation*
+|A message that mutates the state
+
+|*Chat message*
+|Mutation/state with content typed by user
+|===
