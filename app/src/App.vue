@@ -11,6 +11,10 @@ const store = useGlobalStore();
 
 // Load the state from store
 idbget("state").then((v) => {
+  if (v == "") {
+    return
+  }
+
   store.overwrite(JSON.parse(v as string));
 });
 
@@ -39,40 +43,30 @@ WebAssembly.instantiateStreaming(
   const bup = bob.generateUpdate();
   a2.receiveMessage(bup);
 
-  const ctext = a2.sendMessage(btoa("testing 123"));
+  const ctext = a2.sendMessage(new TextEncoder().encode("testing 123"));
   console.log(ctext);
-  console.log(bob.receiveMessage(ctext));
+  console.log(new TextDecoder().decode(bob.receiveMessage(ctext)));
+
+  // Open websocket connection to backend
+  const socket = new WebSocket("ws://" + window.location.hostname + ":8080/ws")
+  socket.onopen = () => {
+    console.log("hey~!")
+
+    const guilds = ["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b", uuidv4()]
+    console.log("guilds", guilds)
+    socket.send(window.tungsten.helpers.marshalSubGuilds(guilds))
+
+    setTimeout(() => {
+      socket.send(window.tungsten.helpers.marshalData("6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b", new TextEncoder().encode("lololol")))
+    }, 1000)
+
+    // socket.send()
+  }
+  socket.onmessage = () => {
+    console.log("msg")
+  }
+
 });
-
-// Open websocket connection to backend
-const socket = new WebSocket("ws://"+window.location.hostname+":8080/ws")
-socket.onopen = () => {
-  console.log("hey~!")
-
-  socket.send(generateSubGuilds(["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b", uuidv4()]))
-}
-socket.onmessage = () => {
-  console.log("msg")
-}
-
-function generateSubGuilds(guilds: string[]): Uint8Array {
-  let buf = new Uint8Array(guilds.length*16+9)
-
-  // Because javascript is fucking trash, we can only write 32bit integers
-  // which means we have to leave the first 4 bytes of empty (big endian)
-  buf[0] = 0x01
-  new DataView(buf.buffer).setUint32(5, guilds.length, false)
-  guilds.forEach((v, k) => {
-    const b = uuidparse(v) as Uint8Array;
-    // I hate javascript
-    [...b].forEach((byt, i) => {
-      buf[k*16+9+i] = byt
-    });
-  })
-
-  return buf
-}
-
 </script>
 
 <template>

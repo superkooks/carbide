@@ -36,21 +36,24 @@ declare global {
     process: any
 
     tungsten: {
-      // All string types are base64
       genTX: () => TxSession
-      importTx: (tx: string) => TxSession
+      importTx: (tx: Uint8Array) => TxSession
 
       // TODO: Remove temp functions
       doubleTx: () => TxSession[]
+
+      helpers: {
+        marshalData: (guild: string, data: Uint8Array) => Uint8Array
+        marshalSubGuilds: (guilds: string[]) => Uint8Array
+      }
     }
   }
 
   interface TxSession {
-    // All string types are base64
-    sendMessage: (data: string) => string
-    receiveMessage: (data: string) => string
-    generateUpdate: () => string
-    export: () => string
+    sendMessage: (data: Uint8Array) => Uint8Array
+    receiveMessage: (data: Uint8Array) => Uint8Array
+    generateUpdate: () => Uint8Array
+    export: () => Uint8Array
   }
 
   // interface RxSession {

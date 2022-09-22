@@ -31,10 +31,9 @@ Subscribe the client to the specified guilds.
 [subs=normal]
 ----
 EvtType:       0x01 - Subscribe guilds
-GuildCount:    The number of guilds to subscribe to (big endian, 64-bit)
 GuildUUID[n]:  The UUID of a guild to subscribe to
 
-M = EvtType || GuildCount || GuildUUID[0] || ... || GuildUUID[n-1]
+M = EvtType || GuildUUID[0] || ... || GuildUUID[n-1]
 ----
 
 === Add user
