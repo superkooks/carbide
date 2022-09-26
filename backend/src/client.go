@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -101,6 +102,8 @@ func (c *Client) Listen() {
 func (c *Client) Send() {
 	for {
 		e := <-c.Events
+
+		c.Conn.SetWriteDeadline(time.Now().Add(time.Second))
 		err := c.Conn.WriteMessage(websocket.BinaryMessage, e)
 		if errors.Is(err, net.ErrClosed) || errors.Is(err, websocket.ErrCloseSent) {
 			return

@@ -2,8 +2,17 @@ package main
 
 import (
 	"bytes"
+	"io"
 
 	"github.com/google/uuid"
+)
+
+type EvtType byte
+
+const (
+	DATA = iota
+	SUB_GUILDS
+	ADD_USER
 )
 
 func MarshalData(guild string, msg []byte) []byte {
@@ -20,6 +29,22 @@ func MarshalData(guild string, msg []byte) []byte {
 	b.Write(msg)
 
 	return b.Bytes()
+}
+
+func UnmarshalData(event []byte) (string, []byte) {
+	b := bytes.NewBuffer(event)
+
+	t, _ := b.ReadByte()
+	if t != DATA {
+		panic("unmarshal data: event is not type data")
+	}
+
+	var guild uuid.UUID
+	b.Read(guild[:])
+
+	msg, _ := io.ReadAll(b)
+
+	return guild.String(), msg
 }
 
 func MarshalSubGuilds(uuids []string) []byte {

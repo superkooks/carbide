@@ -11,7 +11,7 @@ const store = useGlobalStore();
 
 // Load the state from store
 idbget("state").then((v) => {
-  if (v == "") {
+  if (v == "" || v == undefined) {
     return
   }
 
@@ -31,39 +31,62 @@ WebAssembly.instantiateStreaming(
   go.importObject
 ).then((result) => {
   go.run(result.instance);
-  const txs = window.tungsten.doubleTx();
-  const alice = txs[0];
-  const bob = txs[1];
-
-  const a2 = window.tungsten.importTx(alice.export());
-
-  const aup = a2.generateUpdate();
-  bob.receiveMessage(aup);
-
-  const bup = bob.generateUpdate();
-  a2.receiveMessage(bup);
-
-  const ctext = a2.sendMessage(new TextEncoder().encode("testing 123"));
-  console.log(ctext);
-  console.log(new TextDecoder().decode(bob.receiveMessage(ctext)));
 
   // Open websocket connection to backend
   const socket = new WebSocket("ws://" + window.location.hostname + ":8080/ws")
   socket.onopen = () => {
-    console.log("hey~!")
-
-    const guilds = ["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b", uuidv4()]
-    console.log("guilds", guilds)
+    // On open, subscribe to guilds
+    const guilds = ["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"]
     socket.send(window.tungsten.helpers.marshalSubGuilds(guilds))
-
-    setTimeout(() => {
-      socket.send(window.tungsten.helpers.marshalData("6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b", new TextEncoder().encode("lololol")))
-    }, 1000)
-
-    // socket.send()
   }
-  socket.onmessage = () => {
-    console.log("msg")
+
+  socket.onmessage = (v) => {
+    (v.data as Blob).arrayBuffer().then(ab => {
+      let evt = new Uint8Array(ab)
+
+      let evtType = window.tungsten.helpers.eventType(evt)
+      console.log("new msg type:", evtType)
+      switch (evtType) {
+        case "DATA":
+          let { guild, msg } = window.tungsten.helpers.unmarshalData(evt)
+
+          console.log("msg guild:", guild)
+
+          console.log(new TextDecoder().decode(window.ourTx.receiveMessage(msg)))
+      }
+    })
+  }
+
+  let utob = (arr: Uint8Array): string =>
+    btoa(
+      Array(arr.length)
+        .fill('')
+        .map((_, i) => String.fromCharCode(arr[i]))
+        .join('')
+    );
+
+  const btou = (str: string): Uint8Array => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
+
+  // let btou = (str: string): Uint8Array =>
+  //   atob(str) 
+
+  window.genTx = function () {
+    const txs = window.tungsten.doubleTx();
+
+    window.ourTx = txs[0]
+    return utob(txs[1].export())
+  }
+
+  window.setTx = function (input: string) {
+    window.ourTx = window.tungsten.importTx(btou(input))
+  }
+
+  window.sendUpdate = function () {
+    socket.send(window.tungsten.helpers.marshalData("6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b", window.ourTx.generateUpdate()))
+  }
+
+  window.sendMsg = function () {
+    socket.send(window.tungsten.helpers.marshalData("6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b", window.ourTx.sendMessage(new TextEncoder().encode("fuck yeha"))))
   }
 
 });

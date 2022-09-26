@@ -35,6 +35,12 @@ declare global {
     fs: any
     process: any
 
+    ourTx: TxSession
+    genTx: Function
+    setTx: Function
+    sendUpdate: Function
+    sendMsg: Function
+
     tungsten: {
       genTX: () => TxSession
       importTx: (tx: Uint8Array) => TxSession
@@ -43,7 +49,9 @@ declare global {
       doubleTx: () => TxSession[]
 
       helpers: {
-        marshalData: (guild: string, data: Uint8Array) => Uint8Array
+        eventType: (event: Uint8Array) => string
+        marshalData: (guild: string, msg: Uint8Array) => Uint8Array
+        unmarshalData: (event: Uint8Array) => {guild: string, msg: Uint8Array}
         marshalSubGuilds: (guilds: string[]) => Uint8Array
       }
     }

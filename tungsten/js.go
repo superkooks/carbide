@@ -5,7 +5,7 @@ import (
 	"syscall/js"
 )
 
-// The signatures of all these functions are available under
+// The signatures of all of these functions are available under
 // tungsten in /app/src/assets/wasm_exec.ts
 
 // This file is my least favourite.
@@ -101,15 +101,43 @@ func populateTxMethods(tx *TxSession) js.Value {
 }
 
 func genHelpers() js.Value {
+	eventType := func(this js.Value, args []js.Value) any {
+		evt := make([]byte, args[0].Length())
+		js.CopyBytesToGo(evt, args[0])
+
+		switch evt[0] {
+		case DATA:
+			return js.ValueOf("DATA")
+		default:
+			// We should only receive data from the backend
+			return js.ValueOf("UNKNOWN")
+		}
+	}
+
 	marshalData := func(this js.Value, args []js.Value) any {
 		msg := make([]byte, args[1].Length())
 		js.CopyBytesToGo(msg, args[1])
 
-		buf := MarshalData(args[0].String(), msg)
+		evt := MarshalData(args[0].String(), msg)
 
-		out := js.Global().Get("Uint8Array").New(len(buf))
-		js.CopyBytesToJS(out, buf)
+		out := js.Global().Get("Uint8Array").New(len(evt))
+		js.CopyBytesToJS(out, evt)
 		return out
+	}
+
+	unmarshalData := func(this js.Value, args []js.Value) any {
+		evt := make([]byte, args[0].Length())
+		js.CopyBytesToGo(evt, args[0])
+
+		guild, msg := UnmarshalData(evt)
+
+		msgOut := js.Global().Get("Uint8Array").New(len(msg))
+		js.CopyBytesToJS(msgOut, msg)
+
+		return js.ValueOf(map[string]interface{}{
+			"guild": guild,
+			"msg":   msgOut,
+		})
 	}
 
 	marshalSubGuilds := func(this js.Value, args []js.Value) any {
@@ -118,15 +146,17 @@ func genHelpers() js.Value {
 			guilds[i] = args[0].Index(i).String()
 		}
 
-		buf := MarshalSubGuilds(guilds)
+		evt := MarshalSubGuilds(guilds)
 
-		out := js.Global().Get("Uint8Array").New(len(buf))
-		js.CopyBytesToJS(out, buf)
+		out := js.Global().Get("Uint8Array").New(len(evt))
+		js.CopyBytesToJS(out, evt)
 		return out
 	}
 
 	obj := js.ValueOf(map[string]interface{}{
+		"eventType":        js.FuncOf(eventType),
 		"marshalData":      js.FuncOf(marshalData),
+		"unmarshalData":    js.FuncOf(unmarshalData),
 		"marshalSubGuilds": js.FuncOf(marshalSubGuilds),
 	})
 

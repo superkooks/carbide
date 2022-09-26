@@ -106,6 +106,7 @@ SymmetricRatchet:  Current chain key of the symmetric ratchet
 RootRatchet:       Current chain key of the root ratchet
 CurPrivkey:        Current DH private key for receiving ratchet updates
 CurPrivkeyPQ:      Current post-quantum private key for receiving ratchet updates
+CurPubkeyPQ:       Current post-quantum public key for receiving ratchet updates
 RxSessionsLen:     The number of subsequent RxSessions (big endian, 64-bit)
 RxSession[n]:      A slice (array) of RxSessions (defined below)
 

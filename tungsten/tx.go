@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/cloudflare/circl/dh/x25519"
@@ -53,8 +54,8 @@ func (t *TxSession) ReceiveMessage(msg []byte) []byte {
 		}
 	}
 
-	// TODO: don't panic
-	panic("couldn't find rx for message")
+	fmt.Println("couldn't find rx for message")
+	return []byte{}
 }
 
 func (t *TxSession) GenerateUpdate(out io.Writer) {
