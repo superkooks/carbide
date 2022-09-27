@@ -1,36 +1,37 @@
 # State and mutations
 
 ## State
-All of the state for each guild is stored in a JSON object, with the exception of <<_messages>>.
+All of the state for each guild is stored in a JSON object, with the exception of <<_chat_messages>>.
 The state is mutated by mutations.
 
 ## Mutations
 Mutations are represented by a method, path, and (optionally), an object.
-The object must be the entire object, containing all fields.
+The path is determined using the following rules:
 
-There are 3 methods: `INSERT`, `UPDATE`, `DELETE`
+- Objects are indexed by their keys.
+  For instance, `.foo` would access the property of the object called `foo`.
+- Arrays are indexed by the `id` of their underlying object.
+  For instance, a channel `{id: 1234}` could be accessed using `.channels.1234`
 
-NOTE: The `id` field of an object should never be updated, but must be included as a field.
+There are 2 methods: `SET`, `DELETE`.
+
+NOTE: The `id` field of an object should never be updated.
 
 ```
 {
-    "method": "INSERT",
-    "path": ".messages",
-    "object": {
-        "id": "1234567890"
-        ...
-        "content": "New message content"
-    }
-}
-
-{
-    "method": "UPDATE",
+    "method": "SET",
     "path": ".messages.1234567890",
     "object": {
         "id": "1234567890"
         ...
-        "content": "Updated message content"
+        "content": "New message"
     }
+}
+
+{
+    "method": "SET",
+    "path": ".messages.1234567890.content",
+    "object": "Updated message content"
 }
 
 {
