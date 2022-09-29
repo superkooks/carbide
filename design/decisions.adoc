@@ -172,6 +172,36 @@ Since the client will be <<opensource-client,open source>> anyway, it doesn't ma
 |
 |===
 
+=== Messages are stored on-device
+Messages are stored on-device for the same reason that we have <<_forward_secrecy>>, so they can be deleted.
+In my belief, it is not possible to design a system would have forward secrecy while storing the messages on the server in such a way that they could be accessed from anywhere with only one password.
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Would allow users to access their messages from anywhere
+|Likely impossible without breaking forward secrecy
+|===
+
+=== Device compatibility
+[cols=2*]
+|===
+|Web
+|The application will be web-native.
+
+|Desktop
+|Desktop will be supported with an Electron app. Unfortunately this is the easiest way to achieve cross-platform support.
+
+|Mobile
+|Mobile will be supported using a PWA. It makes it super easy to make a near-native app, without the hassle of dealing with the platforms individually. Unfortunately for iOS users, this means they will be unable to receive push notifications until someone buys an Apple Developer License. Sorry, I don't make the rules around here. Blame Apple.
+
+|Terminal
+|Initially, terminal will not be supported. However support could be eventually incorporated. Focus should initially remain on the other clients, as they will make up 95% of users and have very significant code-sharing in terms of the front-end. Terminal will have almost nothing in common with them except for the cryptography, so it makes very little sense to start working on them until the other clients work.
+|===
+
+
+== Encryption
 === Post-quantum security
 It will be secure against quantum computers.
 
@@ -189,22 +219,62 @@ Another 2 or 4 years later, and we will have enough to break 4096-bit RSA.
 |Increases complexity
 |===
 
-=== Device Compatibility
+=== Forward secrecy
+Forward secrecy ensures that once a message has been deleted, it is gone, even if an adversary was sniffing traffic and eventually got access to the keys.
+This is important because otherwise, it may be impossible to delete a message, without deleting the key itself.
+For a more detailed explanation, see https://alexgaynor.net/2017/apr/26/forward-secrecy-is-the-most-important-thing/.
+
+Of course, most user's don't delete their messages once they have read them, but for the user's that do, or those who use disappearing messages, this feature is vital.
+
 [cols=2*]
 |===
-|Web
-|The application will be web-native.
+|Pros |Cons
 
-|Desktop
-|Desktop will be supported with an Electron app. Unfortunately this is the easiest way to achieve cross-platform support.
-
-|Mobile
-|Mobile will be supported using a PWA. It makes it super easy to make a near-native app, without the hassle of dealing with the platforms individually. Unfortunately for iOS users, this means they will be unable to receive push notifications until someone buys an Apple Developer License. Sorry, I don't make the rules around here. Blame Apple.
-
-|Terminal
-|Initially, terminal will not be supported. However support could be eventually incorporated. Focus should initially remain on the other clients, as they will make up 95% of users and have very significant code-sharing in terms of the front-end. Terminal will have almost nothing in common with them except for the cryptography, so it makes very little sense to start working on them until the other clients work.
+|Means your messages will be safe after 2030
+|Increases complexity
 |===
 
+=== No deniability
+Deniability means that it cannot be proved that the contents of the message originated from a sender.
+Theoretically, this is great, you can say whatever you want and not have it attributable to you.
+However, in reality, it is almost pointless.
+The real solution is not letting anyone get a copy of the messages in the first place, such as by using disappearing messages with <<_forward_secrecy>>.
+
+[%hardbreaks]
+*Premise:* Given SMSs do not contain a cryptographic signature, they are a deniable protocol.
+*Premise:* Courts regularly admit SMSs as evidence
+*Conclusion:* Courts admit deniable protocols
+*Conclusion:* Courts must rule on claims of forgery
+
+Indeed, courts do have rules on "authenticating" evidence, so clearly having a deniable protocol does not help signficantly.
+
+[quote,Eleventh Circuit Court of Appeals, UNITED STATES v. CALDWELL]
+____
+Authentication or identification under https://casetext.com/rule/south-carolina-court-rules/south-carolina-rules-of-evidence/article-ix-authentication-and-identification/rule-901-requirement-of-authentication-or-identification?searchWithin=true&listingIndexId=south-carolina-court-rules.south-carolina-rules-of-evidence&q=901&type=rule&sort=relevance&p=1[rule 901] merely involves the process of presenting sufficient evidence to make out a https://en.wikipedia.org/wiki/Prima_facie[prima facie] case that the proffered evidence is what it purports to be. Once that prima facie showing has been made, the evidence should be admitted, although it remains for the trier of fact to appraise whether the proffered evidence is in fact what it purports to be.
+____
+
+[quote,South Carolina Court of Appeal, Opinion No. 5868]
+____
+Like email, authorship can be determined
+by the circumstances surrounding the exchange of
+messages; their contents; who had the background
+knowledge to send the message; and whether the parties
+conventionally communicated by text message.
+____
+
+Things only get worse even if you aren't in court, in the court of public opinion, the bar for evidence is so low that they even admit hearsay.
+Even if you claim the message is forged, very few people will believe you.
+
+If you want actual deniability, use disappearing messages with <<_forward_secrecy>>.
+
+
+[cols=2*]
+|===
+|Pros |Cons
+
+|Your messages were never deniable anyway
+|Messages provably originated from your device
+|===
 
 == Frontend
 === Security
@@ -241,14 +311,3 @@ The process for installing the PWA is much the same as for desktop, but instead 
 
 Unfortately, the integrity of these assets cannot be fully verified by the user, as they may have been altered by another app, and most phones do not provide a mechanism to calculate checksums.
 Of course, even if this were the case, a rootkit or debugger would still allow an attacker to attack the application.
-
-== Backend
-
-[#backend-noauth]
-=== No Authentication
-Clients are not authenticated when they connect to the backend.
-Since the client should be performing authentication and authorization for all requests anyway, the server does not need to authenticate the user. Further, because clients' identity is not tied to any external <<identifier,identifier>>, there is no barrier to create new accounts, which would ordinarily slow down attackers.
-
-The only other purpose of authentication is to prevent bad actors.
-A possible attack would be to fill up a guild with bogus messages and waste client's bandwidth.
-This can be fixed by allowing users in the guild to authorize others to send messages to the guild in a append-only fashion. This doesn't mean all users can invite others, as clients will still drop any unexpected messages. It also doesn't allow users to block others, because it is append-only. 
