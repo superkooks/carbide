@@ -1,22 +1,28 @@
 <script setup lang="ts">
-import { reactive } from "vue";
+import { reactive } from "vue"
 
-const props = defineProps<{ tabs: string[], active: boolean }>();
+const props = defineProps<{ tabs: string[]; active: boolean }>()
 
 const state = reactive({
-  activeIndex: 0
+  activeIndex: 0,
 })
 </script>
 
 <template>
   <div class="view-container">
     <div class="tabs">
-      <div class="tab body-large" v-for="tab,n in props.tabs" :class="{active: n == state.activeIndex}">{{ tab }}
+      <div
+        class="tab body-large"
+        v-for="(tab, n) in props.tabs"
+        :key="n"
+        :class="{ active: n == state.activeIndex }"
+      >
+        {{ tab }}
       </div>
     </div>
 
-    <template v-for="tab,n in props.tabs">
-      <div class="content body-medium" v-if="n == state.activeIndex">
+    <template v-for="(tab, n) in props.tabs">
+      <div class="content body-medium" v-if="n == state.activeIndex" :key="n">
         {{ tab }}
       </div>
     </template>

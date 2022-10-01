@@ -70,3 +70,8 @@ export function applyMut(guild: Guild, mut: Mutation) {
     }
   }
 }
+
+export function encrypt(obj: any, guild: string, tx: TxSession) {
+  let msg = new TextEncoder().encode(JSON.stringify(obj))
+  return window.tungsten.helpers.marshalData(guild, tx.sendMessage(msg))
+}

@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import { reactive } from "vue";
-import Channel from "./Channel.vue";
-
-type Channell = {
-  id: string
-}
+import { reactive } from "vue"
+import ChannelItem from "./ChannelItem.vue"
 
 const state = reactive({
   channels: [
@@ -12,12 +8,16 @@ const state = reactive({
       id: "text",
     },
   ],
-});
+})
 </script>
 
 <template>
   <div class="list">
-    <Channel v-for="channel in state.channels" :key="channel.id" :text="channel.id"></Channel>
+    <ChannelItem
+      v-for="channel in state.channels"
+      :key="channel.id"
+      :text="channel.id"
+    ></ChannelItem>
   </div>
 </template>
 
