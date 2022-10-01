@@ -62,7 +62,6 @@ Session initation requires the following steps:
 === Message formats
 ==== Data
 The format of normal encrypted data. 
-[subs=normal]
 ----
 UUID:         128-bit UUID of the sender
 MsgType:      0x00 - Data
@@ -83,7 +82,6 @@ KeyCiphertextPQ:  The ciphertext resulting from the encapsulation of the Kyber p
 
 Updates[n] = UUID || KeyCiphertext || KeyCiphertextPQ
 ----
-[subs=normal]
 ----
 UUID:         128-bit UUID of the sender
 MsgType:      0x01 - Ratchet update
@@ -146,12 +144,6 @@ All primitives should have at least 128-bit pre- and post-quantum security.
 |golang.org/x/crypto/argon2
 |n/a
 |n/a
-
-|Hash - `NOT USED`
-|SHA-256
-|crypto/sha256
-|128 (collision)
-|85 (collision)
 
 |KDF for symmetric ratchet
 |HMAC-SHA256

@@ -106,12 +106,44 @@ func genHelpers() js.Value {
 		js.CopyBytesToGo(evt, args[0])
 
 		switch evt[0] {
+		case HEARTBEAT:
+			return js.ValueOf("HEARTBEAT")
+		case HEARTBEAT_ACK:
+			return js.ValueOf("HEARTBEAT_ACK")
+		case ERROR:
+			return js.ValueOf("ERROR")
 		case DATA:
 			return js.ValueOf("DATA")
+		case DATA_ACK:
+			return js.ValueOf("DATA_ACK")
+		case REGISTER:
+			return js.ValueOf("REGISTER")
+		case AUTHENTICATE:
+			return js.ValueOf("AUTHENTICATE")
+		case SUB_GUILDS:
+			return js.ValueOf("SUB_GUILDS")
+		case ADD_USERS:
+			return js.ValueOf("ADD_USERS")
+		case REMOVE_USERS:
+			return js.ValueOf("REMOVE_USERS")
 		default:
-			// We should only receive data from the backend
 			return js.ValueOf("UNKNOWN")
 		}
+	}
+
+	marshalHeartbeatAck := func(this js.Value, args []js.Value) any {
+		evt := []byte{HEARTBEAT_ACK}
+
+		out := js.Global().Get("Uint8Array").New(len(evt))
+		js.CopyBytesToJS(out, evt)
+		return out
+	}
+
+	unmarshalError := func(this js.Value, args []js.Value) any {
+		evt := make([]byte, args[0].Length())
+		js.CopyBytesToGo(evt, args[0])
+
+		return js.ValueOf(evt[1])
 	}
 
 	marshalData := func(this js.Value, args []js.Value) any {
@@ -129,15 +161,64 @@ func genHelpers() js.Value {
 		evt := make([]byte, args[0].Length())
 		js.CopyBytesToGo(evt, args[0])
 
-		guild, msg := UnmarshalData(evt)
+		guild, evtID, ts, msg := UnmarshalData(evt)
 
 		msgOut := js.Global().Get("Uint8Array").New(len(msg))
 		js.CopyBytesToJS(msgOut, msg)
 
 		return js.ValueOf(map[string]interface{}{
 			"guild": guild,
+			"evt":   evtID,
+			"ts":    ts,
 			"msg":   msgOut,
 		})
+	}
+
+	unmarshalDataAck := func(this js.Value, args []js.Value) any {
+		evt := make([]byte, args[0].Length())
+		js.CopyBytesToGo(evt, args[0])
+
+		guild, evtID, ts := UnmarshalDataAck(evt)
+
+		return js.ValueOf(map[string]interface{}{
+			"guild": guild,
+			"evt":   evtID,
+			"ts":    ts,
+		})
+	}
+
+	marshalRegister := func(this js.Value, args []js.Value) any {
+		evt := append([]byte{REGISTER}, make([]byte, 16)...)
+
+		out := js.Global().Get("Uint8Array").New(len(evt))
+		js.CopyBytesToJS(out, evt)
+		return out
+	}
+
+	unmarshalRegister := func(this js.Value, args []js.Value) any {
+		evt := make([]byte, args[0].Length())
+		js.CopyBytesToGo(evt, args[0])
+
+		user, token := UnmarshalRegister(evt)
+
+		tokenOut := js.Global().Get("Uint8Array").New(len(token))
+		js.CopyBytesToJS(tokenOut, token)
+
+		return js.ValueOf(map[string]interface{}{
+			"user":  user,
+			"token": token,
+		})
+	}
+
+	marshalAuthenticate := func(this js.Value, args []js.Value) any {
+		token := make([]byte, args[0].Length())
+		js.CopyBytesToGo(token, args[0])
+
+		out := append([]byte{AUTHENTICATE}, token...)
+
+		evt := js.Global().Get("Uint8Array").New(len(out))
+		js.CopyBytesToJS(evt, out)
+		return evt
 	}
 
 	marshalSubGuilds := func(this js.Value, args []js.Value) any {
@@ -153,11 +234,45 @@ func genHelpers() js.Value {
 		return out
 	}
 
+	marshalAddUsers := func(this js.Value, args []js.Value) any {
+		users := make([]string, args[1].Length())
+		for i := 0; i < args[1].Length(); i++ {
+			users[i] = args[1].Index(i).String()
+		}
+
+		evt := MarshalAddUsers(args[0].String(), users)
+
+		out := js.Global().Get("Uint8Array").New(len(evt))
+		js.CopyBytesToJS(out, evt)
+		return out
+	}
+
+	marshalRemoveUsers := func(this js.Value, args []js.Value) any {
+		users := make([]string, args[1].Length())
+		for i := 0; i < args[1].Length(); i++ {
+			users[i] = args[1].Index(i).String()
+		}
+
+		evt := MarshalAddUsers(args[0].String(), users)
+
+		out := js.Global().Get("Uint8Array").New(len(evt))
+		js.CopyBytesToJS(out, evt)
+		return out
+	}
+
 	obj := js.ValueOf(map[string]interface{}{
-		"eventType":        js.FuncOf(eventType),
-		"marshalData":      js.FuncOf(marshalData),
-		"unmarshalData":    js.FuncOf(unmarshalData),
-		"marshalSubGuilds": js.FuncOf(marshalSubGuilds),
+		"eventType":           js.FuncOf(eventType),
+		"marshalHeartbeatAck": js.FuncOf(marshalHeartbeatAck),
+		"unmarshalError":      js.FuncOf(unmarshalError),
+		"marshalData":         js.FuncOf(marshalData),
+		"unmarshalData":       js.FuncOf(unmarshalData),
+		"unmarshalDataAck":    js.FuncOf(unmarshalDataAck),
+		"marshalRegister":     js.FuncOf(marshalRegister),
+		"unmarshalRegister":   js.FuncOf(unmarshalRegister),
+		"marshalAuthenticate": js.FuncOf(marshalAuthenticate),
+		"marshalSubGuilds":    js.FuncOf(marshalSubGuilds),
+		"marshalAddUsers":     js.FuncOf(marshalAddUsers),
+		"marshalRemoveUsers":  js.FuncOf(marshalRemoveUsers),
 	})
 
 	return obj

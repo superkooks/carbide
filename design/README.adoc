@@ -7,3 +7,5 @@
 <<terminology.adoc,Terminology>> lists the standardised terminology used throughout the application.
 
 <<state.adoc,State>> describes how the state of the client, and how it is mutated.
+
+<<backend.adoc,Backend>> describes how the backend works, and how the client communicates with it.
