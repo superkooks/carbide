@@ -1,9 +1,25 @@
 = Backend
+:toc:
 
 == Topology
 Since all clients must maintain the exact same state, messages must be delivered in-order.
 To facilitate this, the backend servers are sharded by guild, allowing each server to maintain the exact order of messages for their guilds.
-However, clients generally participate in multiple guilds, necessitating  
+However, clients generally participate in multiple guilds, necessitating a layer which routes the connections on a per-guild basis.
+These layers are detailed in the below diagram.
+
+image::topology.svg[Topology of the backend]
+
+The aggregator is responsible for terminating websocket connections, implementing the <<_protocol>>, as well as authentication and authorization.
+When an event arrives that needs to be processed by a reflector (e.g. Data event), the aggregator looks up the appropriate reflector in the DB, and opens a connection to the reflector, if one does not already exist.
+Importantly, when a client subscribes to a guild, the event is relayed to the appropriate reflector, so it knows to send any events for that guild back to that aggregator.
+Connections to reflectors are kept open with periodic hearbeats so they can be reused.
+
+The reflector is responsible for the ordering of messages on a per-guild basis.
+It maintains a queue of events for each guild.
+When it receives a event on one of these queues, it stores the event in the database, and sends the event to the subscribed aggregators.
+The reflector never creates connections, instead sending messages through existing connections created by aggregators.
+
+The connections between these layers are all websockets.
 
 [#auth]
 == Authentication & Authorization

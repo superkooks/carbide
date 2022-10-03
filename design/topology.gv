@@ -1,0 +1,36 @@
+graph backend {
+    subgraph a {
+        rank=same
+        Aggregator[shape=none]
+        A1
+        A2
+    }
+
+    subgraph p {
+        rank=same
+        Reflector[shape=none]
+        R1
+        R2
+        R3
+    }
+
+    subgraph db {
+        rank=same
+        MongoDB[shape=none]
+        DB1
+        DB2
+    }
+
+    Aggregator -- Reflector[style=invis]
+    A1 -- {R1 R2 R3}
+    A2 -- {R1 R2 R3}
+
+    Reflector -- MongoDB[style=invis]
+    R1 -- {DB1 DB2}
+    R2 -- {DB1 DB2}
+    R3 -- {DB1 DB2}
+
+    A1 -- DB1
+    A2 -- DB2
+    DB1 -- DB2
+}
