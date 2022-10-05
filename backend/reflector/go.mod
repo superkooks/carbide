@@ -1,11 +1,10 @@
-module carbide/backend/src
+module carbide/backend/reflector
 
 go 1.19
 
 require (
-	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
-	go.mongodb.org/mongo-driver v1.10.2
+	go.mongodb.org/mongo-driver v1.10.3
 )
 
 require (

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"carbide/backend/common"
 	"context"
 	"net/http"
 	"time"
@@ -23,7 +24,7 @@ var upgrader = websocket.Upgrader{
 
 func main() {
 	// Connect to database
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://" + DB_HOST))
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://" + DB_HOST).SetRegistry(common.Registry))
 	if err != nil {
 		panic(err)
 	}
@@ -59,7 +60,8 @@ func serveSocket(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	c := CreateClient(conn)
+	c := NewClient(conn)
 	go c.Listen()
 	go c.Send()
+	go c.Heartbeat()
 }

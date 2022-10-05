@@ -5,21 +5,23 @@
 Since all clients must maintain the exact same state, messages must be delivered in-order.
 To facilitate this, the backend servers are sharded by guild, allowing each server to maintain the exact order of messages for their guilds.
 However, clients generally participate in multiple guilds, necessitating a layer which routes the connections on a per-guild basis.
-These layers are detailed in the below diagram.
+These layers are detailed in the below diagram. The layers are connected using msgpack over websockets.
 
 image::topology.svg[Topology of the backend]
 
+=== Aggregator
 The aggregator is responsible for terminating websocket connections, implementing the <<_protocol>>, as well as authentication and authorization.
 When an event arrives that needs to be processed by a reflector (e.g. Data event), the aggregator looks up the appropriate reflector in the DB, and opens a connection to the reflector, if one does not already exist.
+If no reflector exists for a guild, one will be allocated, based on the load information in the database
+
 Importantly, when a client subscribes to a guild, the event is relayed to the appropriate reflector, so it knows to send any events for that guild back to that aggregator.
 Connections to reflectors are kept open with periodic hearbeats so they can be reused.
 
+=== Reflector
 The reflector is responsible for the ordering of messages on a per-guild basis.
 It maintains a queue of events for each guild.
 When it receives a event on one of these queues, it stores the event in the database, and sends the event to the subscribed aggregators.
 The reflector never creates connections, instead sending messages through existing connections created by aggregators.
-
-The connections between these layers are all websockets.
 
 [#auth]
 == Authentication & Authorization
@@ -42,132 +44,23 @@ Futher, we don't need to enforce the consistency between the user id for each co
 If users receive messages from a random uuid, they will simply drop them.
 Since the original user uuid was already authorized, this does not break the authorization system.
 
-== Database 
-All encrypted messages are stored in MongoDB.
+== Database
+More information can be found in `backend/common/db.go`
 
+All encrypted messages are stored in MongoDB.
 The messages are stored in chronological order per guild indexed by timestamp.
 Internally, we have a `messages` collection in the `carbide` database.
-Documents have a `guildID`, `evtID`, `ts`, and `message` fields.
+
+Each guild also has a document in the `guilds` collection describing which reflector it is currently being served by, as well as each user's allowlist.
+Reflectors also have their own `reflectors` collection, allowing them to share their current load with aggregators.
+
+The `users` collection contains information about the token and user ID of each user.
 
 == Protocol
-The webapp talks to the backend over websockets.
+The webapp talks to the backend over websockets using msgpack.
+More documentation, and the source of truth for event formats, is availabe in `backend/aggregator/event.go`.
 
 Events are sent as `websocket.BinaryMessage`, as the underlying encrypted messages are, of course, binary.
 
-=== Heartbeat
-When a client receives a heartbeat, it should immediately respond with a Heartbeat Ack.
-Sent by the backend only.
-----
-EvtType:  0x00 - Heartbeat
-
-M = EvtType
-----
-
-
-=== Heartbeat Ack
-Sent by clients only.
-----
-EvtType:  0x01 - Heartbeat Ack
-
-M = EvtType
-----
-
-
-=== Error
-Sent by the backend only.
-----
-EvtType:  0x02 - Error
-Error:    A byte value. One of:
-            0x00 - Failed to authenticate. You will be disconnected.
-            0x01 - Not in guild allowlist. (Cannot subscribe or send message)
-
-M = EvtType || Error
-----
-
-
-=== Data
-Sent by clients and the backend.
-----
-EvtType:    0x03 - Data
-GuildUUID:  128-bit UUID of the guild
-EvtUUID:    An UUID set by the client when sending this message that uniquely identifies this event.
-Timestamp:  Unix millis of when the message was broadcast by the backend (64-bit, big endian)
-            This field is only filled by the backend. When sent by the client, it SHOULD be left as 0.
-Message:    The bytes of the message itself
-
-M = EvtType || GuildUUID || EvtUUID || Timestamp || Message
-----
-
-
-=== Data Ack
-An ack acknowledges that a sender's Data event has been distributed.
-This indicates to the sender that it should apply the referenced mutation itself.
-Using an Ack means we don't break the strong ordering of messages, and means we don't have to add ourselves to our own TX session.
-Sent by the backend only.
-----
-EvtType:    0x04 - Data Ack
-GuildUUID:  128-bit UUID of the guild
-EvtUUID:    The EvtUUID set in the corresponding Data event
-Timestamp:  Unix millis of when the corresponding event was broadcast by the backend (64-bit, big endian)
-
-M = EvtType || GuildUUID || EvtUUID || Timestamp
-----
-
-
-=== Register
-Generate new user uuid and corresponding <<auth,token>>.
-The backend will return a filled version of the event.
-Sent by clients and the backend.
-----
-EvtType:   0x05 - Register
-UserUUID:  The new uuid of the user. SHOULD be set to 0 when trasmitted by the client.
-Token:     The token to prove ownership of the uuid to the server. SHOULD be left empty by the client.
-
-M = EvtType || UserUUID || Token
-----
-
-
-=== Authenticate
-Sent by clients only.
-[subs=normal]
-----
-EvtType:  0x06 - Authenticate
-Token:    The token. See <<auth>>.
-
-M = EvtType || Token
-----
-
-
-=== Subscribe guilds
-Subscribe the client to the specified guilds.
-Sent by clients only.
-----
-EvtType:       0x07 - Subscribe guilds
-GuildUUID[n]:  The UUID of a guild to subscribe to
-
-M = EvtType || GuildUUID[0] || ... || GuildUUID[n-1]
-----
-
-
-=== Add users
-Add the specified users to the user's guild allowlist, as described in <<auth>>.
-Sent by clients only.
-----
-EvtType:      0x08 - Add users
-GuildUUID:    128-bit UUID of the guild
-UserUUID[n]:  128-bit UUID of the user
-
-M = EvtType || GuildUUID || UserUUID[0] || ... || UserUUID[n-1]
-----
-
-
-=== Remove users
-Remove the specified users to the user's guild allowlist, as described in <<auth>>.
-Sent by clients only.
-----
-EvtType:      0x09 - Remove users
-GuildUUID:    128-bit UUID of the guild
-UserUUID[n]:  128-bit UUID of the user
-
-M = EvtType || GuildUUID || UserUUID[0] || ... || UserUUID[n-1]
-----
+The same protocol is reused for communication interally in the backend, although only a limited subeset of events are used.
+Aggregators are still required to respond to heartbeats from reflectors, and should close the connection if twice the interval elapses.
