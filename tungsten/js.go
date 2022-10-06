@@ -65,10 +65,14 @@ func populateTxMethods(tx *TxSession) js.Value {
 		in := make([]byte, args[0].Length())
 		js.CopyBytesToGo(in, args[0])
 
-		msg := tx.ReceiveMessage(in)
-		out := js.Global().Get("Uint8Array").New(len(msg))
-		js.CopyBytesToJS(out, msg)
-		return out
+		msg, err := tx.ReceiveMessage(in)
+		outBytes := js.Global().Get("Uint8Array").New(len(msg))
+		js.CopyBytesToJS(outBytes, msg)
+
+		return js.ValueOf(map[string]interface{}{
+			"msg":   outBytes,
+			"error": err != nil,
+		})
 	}
 
 	genUpdate := func(this js.Value, args []js.Value) any {

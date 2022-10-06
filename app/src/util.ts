@@ -1,4 +1,8 @@
-import type { Mutation, Guild } from "./stores/guilds";
+import type { Mutation, Guild } from "./stores/guilds"
+import { encode } from "@msgpack/msgpack"
+import { parse as uuidParse, v4 as uuidV4 } from "uuid"
+import { useEphemeralStore } from "@/stores/ephemeral"
+import { useGuildsStore } from "@/stores/guilds"
 
 // For some reason, javascript doesn't have any native mechanism to convert bytes to base64
 // or back. I don't know why anyone wants to use this language.
@@ -69,4 +73,27 @@ export function applyMut(guild: Guild, mut: Mutation) {
       delete obj[path[0]]
     }
   }
+}
+
+export function sendMutation(guildId: string, msg: any) {
+  const store = useGuildsStore()
+  const ephem = useEphemeralStore()
+
+  const evtId = uuidV4()
+  ephem.pendingMutations[evtId] = msg
+
+  ephem.ws?.send(
+    encode({
+      type: 0x03,
+      evt: encode({
+        guildId: uuidParse(guildId),
+        evtId: uuidParse(evtId),
+        message: store.txSessions[guildId].sendMessage(
+          new TextEncoder().encode(
+            JSON.stringify(msg)
+          )
+        ),
+      }),
+    })
+  )
 }

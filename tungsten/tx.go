@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"io"
 
 	"github.com/cloudflare/circl/dh/x25519"
@@ -44,18 +44,17 @@ func (t *TxSession) SendMessage(msg []byte, w io.Writer) {
 	m.Marshal(w)
 }
 
-func (t *TxSession) ReceiveMessage(msg []byte) []byte {
+func (t *TxSession) ReceiveMessage(msg []byte) ([]byte, error) {
 	var u uuid.UUID
 	copy(u[:], msg)
 
 	for _, v := range t.Children {
 		if v.UUID == u {
-			return v.ReceiveMessage(msg)
+			return v.ReceiveMessage(msg), nil
 		}
 	}
 
-	fmt.Println("couldn't find rx for message")
-	return []byte{}
+	return []byte{}, errors.New("couldn't find rx for message")
 }
 
 func (t *TxSession) GenerateUpdate(out io.Writer) {

@@ -59,6 +59,8 @@ func (a *Aggregator) Listen() {
 				panic(err)
 			}
 
+			evt.Timestamp = time.Now().UnixMilli()
+
 			// Store the message
 			m := common.DBMessage{
 				ID:        evt.EvtID,

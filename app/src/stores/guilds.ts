@@ -24,6 +24,7 @@ export const useGuildsStore = defineStore({
   state: () => ({
     guilds: {} as {[guild: string]: Guild},
     txSessions: {} as {[guild: string]: TxSession},
+    latestTs: {} as {[guild: string]: number},
   }),
 
   actions: {

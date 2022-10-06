@@ -15,6 +15,7 @@ import {
   v4 as uuidV4,
 } from "uuid"
 import type { SocketEvent, EvtData, EvtError, EvtRegister } from "./wsevent"
+import { storeToRefs } from "pinia"
 
 const guilds = useGuildsStore()
 const user = useUserStore()
@@ -89,17 +90,6 @@ WebAssembly.instantiateStreaming(fetch("/tungsten.wasm"), go.importObject).then(
           }),
         })
       )
-
-      socket.send(
-        encode({
-          type: 0x03,
-          evt: encode({
-            guildId: uuidParse("6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"),
-            evtId: uuidParse(uuidV4()),
-            message: btou("testing123"),
-          }),
-        })
-      )
     }
 
     socket.onmessage = (v) => {
@@ -118,19 +108,32 @@ WebAssembly.instantiateStreaming(fetch("/tungsten.wasm"), go.importObject).then(
           const { code } = decode(event.evt) as EvtError
           console.log("websocket non-fatal error:", code)
         } else if (event.type == 0x03) {
-          const { guildId, message } = decode(event.evt) as EvtData
+          const { guildId, message, timestamp, evtId } = decode(
+            event.evt
+          ) as EvtData
           const guild = uuidStringify(guildId)
 
           console.log("msg guild:", uuidStringify(guildId))
-          console.log(utob(message))
 
-          const txt = new TextDecoder().decode(
+          const { msg, error } =
             guilds.txSessions[guild].receiveMessage(message)
-          )
-          console.log(txt)
-          const mut = JSON.parse(txt) as Mutation
 
-          applyMut(guilds.guilds[guild], mut)
+          if (!error) {
+            const txt = new TextDecoder().decode(msg)
+            console.log(txt)
+            const mut = JSON.parse(txt) as Mutation
+            guilds.latestTs[guild] = timestamp
+
+            applyMut(guilds.guilds[guild], mut)
+          } else {
+            // If there is an error, then it is probably because we sent the message,
+            // so we should look for any pending mutations
+            const mut = ephem.pendingMutations[uuidStringify(evtId)]
+            if (mut != undefined) {
+              guilds.latestTs[guild] = timestamp
+              applyMut(guilds.guilds[guild], mut)
+            }
+          }
         } else if (event.type == 0x04) {
           const { userId, token } = decode(event.evt) as EvtRegister
           user.id = uuidStringify(userId)
