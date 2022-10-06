@@ -1,34 +1,29 @@
 <script setup lang="ts">
 import { useEphemeralStore } from "@/stores/ephemeral"
-import { useGlobalStore } from "@/stores/global"
-import { onMounted } from "vue"
-import { encrypt } from "../util"
+import { useGuildsStore } from "@/stores/guilds"
 
-const store = useGlobalStore()
+const store = useGuildsStore()
 const ephem = useEphemeralStore()
 
-function changeName(id: string) {
-  ephem.ws?.send(
-    encrypt(
-      {
-        method: "SET",
-        path: ".name",
-        object: "wat",
-      },
-      id,
-      store.txSessions[id]
-    )
-  )
-}
+// function changeName(id: string) {
+//   ephem.ws?.send(
+//     encrypt(
+//       {
+//         method: "SET",
+//         path: ".name",
+//         object: "wat",
+//       },
+//       id,
+//       store.txSessions[id]
+//     )
+//   )
+// }
+// @click="changeName(guild.id)"
 </script>
 
 <template>
   <div class="container">
-    <div
-      v-for="guild in store.guilds"
-      :key="guild.id"
-      @click="changeName(guild.id)"
-    >
+    <div v-for="guild in store.guilds" :key="guild.id">
       {{ guild.name }}
     </div>
   </div>

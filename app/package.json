@@ -13,6 +13,7 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
   },
   "dependencies": {
+    "@msgpack/msgpack": "^2.8.0",
     "idb-keyval": "^6.2.0",
     "pinia": "^2.0.17",
     "uuid": "^9.0.0",

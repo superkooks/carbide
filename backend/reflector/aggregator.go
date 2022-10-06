@@ -33,7 +33,7 @@ func (a *Aggregator) Listen() {
 	for {
 		_, b, err := a.Conn.ReadMessage()
 		if err != nil {
-			fmt.Println("client lost connection")
+			fmt.Println("aggregator lost connection")
 
 			// Retry, otherwise remove aggregator from list
 			// Note: we need to think about how heartbeats and retries should work

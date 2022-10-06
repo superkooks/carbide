@@ -18,8 +18,8 @@ export interface Mutation {
   object?: any
 }
 
-export const useGlobalStore = defineStore({
-  id: "global",
+export const useGuildsStore = defineStore({
+  id: "guilds",
 
   state: () => ({
     guilds: {} as {[guild: string]: Guild},
@@ -29,8 +29,10 @@ export const useGlobalStore = defineStore({
   actions: {
     overwrite(state: any) {
       // Import our crypto sessions before assigning to state
-      for (const guild in state.txSessions) {
-        state.txSessions[guild] = window.tungsten.importTx(btou(state.txSessions[guild]))
+      if (state.txSessions != null) {
+        for (const guild in state.txSessions) {
+          state.txSessions[guild] = window.tungsten.importTx(btou(state.txSessions[guild]))
+        }
       }
 
       for (const prop in state) {

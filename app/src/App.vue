@@ -2,13 +2,22 @@
 import Guilds from "./components/GuildList.vue"
 import Channels from "./components/ChannelList.vue"
 import MainView from "./components/MainView.vue"
-import { useGlobalStore, type Guild, type Mutation } from "@/stores/global"
+import { useGuildsStore, type Mutation } from "@/stores/guilds"
 import { Go } from "@/assets/wasm_exec.js"
 import { set as idbset, get as idbget } from "idb-keyval"
 import { utob, btou, applyMut } from "./util"
 import { useEphemeralStore } from "./stores/ephemeral"
+import { useUserStore } from "./stores/user"
+import { encode, decode } from "@msgpack/msgpack"
+import {
+  stringify as uuidStringify,
+  parse as uuidParse,
+  v4 as uuidV4,
+} from "uuid"
+import type { SocketEvent, EvtData, EvtError, EvtRegister } from "./wsevent"
 
-const store = useGlobalStore()
+const guilds = useGuildsStore()
+const user = useUserStore()
 const ephem = useEphemeralStore()
 
 // Fetch and start tungsten
@@ -17,65 +26,132 @@ WebAssembly.instantiateStreaming(fetch("/tungsten.wasm"), go.importObject).then(
   (result) => {
     go.run(result.instance)
 
-    // Load the state from store
-    idbget("state").then((v) => {
+    // Load the state from guilds
+    idbget("guilds").then((v) => {
       if (v == "" || v == undefined) {
         return
       }
 
-      store.overwrite(JSON.parse(v as string))
+      guilds.overwrite(JSON.parse(v as string))
+    })
+    idbget("user").then((v) => {
+      if (v == "" || v == undefined) {
+        return
+      }
+
+      user.overwrite(JSON.parse(v as string))
     })
 
     // Listen for updates
-    store.$subscribe((mutation, state) => {
-      const e = store.export()
+    guilds.$subscribe((mutation, state) => {
+      const e = guilds.export()
       // console.log(e)
-      idbset("state", e)
+      idbset("guilds", e)
+    })
+    user.$subscribe((mutation, state) => {
+      const e = user.export()
+      idbset("user", e)
     })
 
     // Open websocket connection to backend
     const socket = new WebSocket(
       "ws://" + window.location.hostname + ":8080/ws"
     )
+
     socket.onopen = () => {
       ephem.ws = socket
 
-      // On open, subscribe to guilds
-      const guilds = ["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"]
-      socket.send(window.tungsten.helpers.marshalSubGuilds(guilds))
+      // On open, authenticate
+      if (user.token == null) {
+        // We don't have a token, we should register instead
+        // TODO Eventually I will get around to actually adding a register screen
+        socket.send(
+          encode({
+            type: 0x04, // TODO use constants
+          })
+        )
+      } else {
+        socket.send(
+          encode({
+            type: 0x05,
+            evt: encode({
+              token: user.token,
+            }),
+          })
+        )
+      }
+
+      socket.send(
+        encode({
+          type: 0x06,
+          evt: encode({
+            guildIds: [uuidParse("6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b")],
+          }),
+        })
+      )
+
+      socket.send(
+        encode({
+          type: 0x03,
+          evt: encode({
+            guildId: uuidParse("6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"),
+            evtId: uuidParse(uuidV4()),
+            message: btou("testing123"),
+          }),
+        })
+      )
     }
 
     socket.onmessage = (v) => {
       ;(v.data as Blob).arrayBuffer().then((ab) => {
-        const evt = new Uint8Array(ab)
+        const event = decode(new Uint8Array(ab)) as SocketEvent
 
-        const evtType = window.tungsten.helpers.eventType(evt)
-        console.log("new msg type:", evtType)
-        if (evtType == "DATA") {
-          const { guild, msg } = window.tungsten.helpers.unmarshalData(evt)
+        console.log("new msg type:", event.type)
+        if (event.type == 0x00) {
+          // Respond with heartbeat ack
+          socket.send(
+            encode({
+              type: 0x01,
+            })
+          )
+        } else if (event.type == 0x02) {
+          const { code } = decode(event.evt) as EvtError
+          console.log("websocket non-fatal error:", code)
+        } else if (event.type == 0x03) {
+          const { guildId, message } = decode(event.evt) as EvtData
+          const guild = uuidStringify(guildId)
 
-          console.log("msg guild:", guild)
+          console.log("msg guild:", uuidStringify(guildId))
+          console.log(utob(message))
 
           const txt = new TextDecoder().decode(
-            store.txSessions[guild].receiveMessage(msg)
+            guilds.txSessions[guild].receiveMessage(message)
           )
           console.log(txt)
           const mut = JSON.parse(txt) as Mutation
 
-          applyMut(store.guilds[guild], mut)
+          applyMut(guilds.guilds[guild], mut)
+        } else if (event.type == 0x04) {
+          const { userId, token } = decode(event.evt) as EvtRegister
+          user.id = uuidStringify(userId)
+          user.token = token
         }
       })
+    }
+
+    socket.onclose = (v) => {
+      console.log("websocket fatal error:", v.code)
     }
 
     window.genTx = function () {
       const txs = window.tungsten.doubleTx()
 
-      store.txSessions["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"] = txs[0]
+      guilds.txSessions["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"] = txs[0]
       return utob(txs[1].export())
     }
 
     window.setTx = function (input: string) {
-      store.txSessions["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"] =
+      guilds.txSessions["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"] =
         window.tungsten.importTx(btou(input))
     }
   }

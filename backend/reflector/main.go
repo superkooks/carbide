@@ -61,7 +61,7 @@ func main() {
 	db = client.Database(DB_NAME)
 
 	// Start http server
-	http.HandleFunc("/ws", serveSocket)
+	http.HandleFunc("/", serveSocket)
 	go func() {
 		err = http.ListenAndServe(":"+REFLECTOR_PORT, nil)
 		if err != nil {

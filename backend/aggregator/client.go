@@ -187,6 +187,12 @@ func (c *Client) Heartbeat() {
 	for {
 		time.Sleep(common.CLIENT_HEARTBEAT_INTERVAL)
 
+		if !c.Authorized {
+			// If you haven't authorized by the first heartbeat then
+			// you are just wasting our time
+			c.Close(4000, "failed to authenticate")
+		}
+
 		if time.Since(c.LastAck) > 2*common.CLIENT_HEARTBEAT_INTERVAL {
 			// Close the connection if twice the heartbeat interval has elapsed
 			c.Close(4001, "failed to ack heartbeat")

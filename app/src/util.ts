@@ -1,4 +1,4 @@
-import type { Mutation, Guild } from "./stores/global";
+import type { Mutation, Guild } from "./stores/guilds";
 
 // For some reason, javascript doesn't have any native mechanism to convert bytes to base64
 // or back. I don't know why anyone wants to use this language.
@@ -69,9 +69,4 @@ export function applyMut(guild: Guild, mut: Mutation) {
       delete obj[path[0]]
     }
   }
-}
-
-export function encrypt(obj: any, guild: string, tx: TxSession) {
-  let msg = new TextEncoder().encode(JSON.stringify(obj))
-  return window.tungsten.helpers.marshalData(guild, tx.sendMessage(msg))
 }

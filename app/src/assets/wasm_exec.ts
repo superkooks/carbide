@@ -47,21 +47,6 @@ declare global {
 
       // TODO: Remove temp functions
       doubleTx: () => TxSession[]
-
-      helpers: {
-        eventType: (event: Uint8Array) => string
-        marshalHeartbeatAck: () => Uint8Array
-        unmarshalError: (event: Uint8Array) => number
-        marshalData: (guild: string, msg: Uint8Array) => Uint8Array
-        unmarshalData: (event: Uint8Array) => {guild: string, evt: string, ts: number, msg: Uint8Array}
-        unmarshalDataAck: (event: Uint8Array) => {guild: string, evt: string, ts: number}
-        marshalRegister: () => Uint8Array
-        unmarshalRegister: (event: Uint8Array) => {user: string, token: Uint8Array}
-        marshalAuthenticate: (token: Uint8Array) => Uint8Array
-        marshalSubGuilds: (guilds: string[]) => Uint8Array
-        marshalAddUsers: (guild: string, users: string[]) => Uint8Array
-        marshalRemoveUsers: (guild: string, users: string[]) => Uint8Array
-      }
     }
   }
 

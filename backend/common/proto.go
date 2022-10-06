@@ -52,8 +52,8 @@ type EvtError struct {
 // Sent by clients and the backend.
 type EvtData struct {
 	GuildID   uuid.UUID `msgpack:"guildId"`
-	EvtID     uuid.UUID `msgpack:"evtId"`
-	Timestamp int64     `msgpack:"timestamp"` // unix millis
+	EvtID     uuid.UUID `msgpack:"evtId"`     // set by client
+	Timestamp int64     `msgpack:"timestamp"` // unix millis, left 0 by client
 	Message   []byte    `msgpack:"message"`
 }
 

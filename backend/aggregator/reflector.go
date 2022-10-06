@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vmihailenco/msgpack"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 //lint:file-ignore SA1012 Mongo permits it
@@ -26,11 +27,23 @@ type Reflector struct {
 var reflectors []*Reflector
 
 func ReflectorForGuild(guildID uuid.UUID) *Reflector {
+	fmt.Println("finding reflector for guild", guildID.String())
+
 	// Find the guild object
 	var guild common.DBGuild
 	err := db.Collection("guilds").
 		FindOne(nil, bson.D{{Key: "_id", Value: guildID}}).Decode(&guild)
-	if err != nil {
+	if err == mongo.ErrNoDocuments {
+		// Insert guild if it doesn't exist
+		guild = common.DBGuild{
+			ID: guildID,
+		}
+
+		_, err = db.Collection("guilds").InsertOne(nil, guild)
+		if err != nil {
+			panic(err)
+		}
+	} else if err != nil {
 		panic(err)
 	}
 
@@ -56,6 +69,7 @@ func ReflectorForGuild(guildID uuid.UUID) *Reflector {
 		sort.Sort(common.ByLoad(reflectors))
 
 		// Update guild object
+		fmt.Println("chosen lowest load reflector:", reflectors[0].Addr)
 		guild.ReflectorAddr = reflectors[0].Addr
 		_, err = db.Collection("guilds").
 			ReplaceOne(nil, bson.D{{Key: "_id", Value: guildID}}, guild)
@@ -64,6 +78,7 @@ func ReflectorForGuild(guildID uuid.UUID) *Reflector {
 		}
 	}
 
+	fmt.Println("using reflector:", guild.ReflectorAddr)
 	return FindReflector(guild.ReflectorAddr)
 }
 
@@ -79,7 +94,8 @@ func FindReflector(addr string) *Reflector {
 }
 
 func newReflector(addr string) *Reflector {
-	conn, _, err := websocket.DefaultDialer.Dial(addr, nil)
+	// Note: we should probably use wss between machines, but...
+	conn, _, err := websocket.DefaultDialer.Dial("ws://"+addr, nil)
 	if err != nil {
 		panic(err)
 	}

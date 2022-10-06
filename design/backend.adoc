@@ -58,7 +58,7 @@ The `users` collection contains information about the token and user ID of each 
 
 == Protocol
 The webapp talks to the backend over websockets using msgpack.
-More documentation, and the source of truth for event formats, is availabe in `backend/aggregator/event.go`.
+More documentation, and the source of truth for event formats, is availabe in `backend/common/proto.go`.
 
 Events are sent as `websocket.BinaryMessage`, as the underlying encrypted messages are, of course, binary.
 
