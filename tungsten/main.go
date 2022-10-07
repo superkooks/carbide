@@ -41,8 +41,8 @@ func main() {
 	<-c
 }
 
-func GenTx() *TxSession {
-	t := &TxSession{UUID: uuid.New()}
+func GenTx(id uuid.UUID) *TxSession {
+	t := &TxSession{UUID: id}
 
 	// Ratchets
 	var rootRoot ChainKey

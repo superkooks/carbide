@@ -40,13 +40,6 @@ export const useGuildsStore = defineStore({
         // typescript doing it's best to make my code ugly
         (this as {[key: string]: any})[prop] = state[prop]
       }
-
-      this.guilds = {}
-      this.guilds["6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b"] = {
-        id: "6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b",
-        name: "hih",
-        channels: []
-      }
     },
 
     export(): string {

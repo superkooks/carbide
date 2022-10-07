@@ -246,7 +246,4 @@
 	--md-on-surface-variant: var(--md-sys-color-on-surface-variant-dark);
 	--md-inverse-surface: var(--md-sys-color-inverse-surface-dark);
 	--md-inverse-on-surface: var(--md-sys-color-inverse-on-surface-dark);
-
-  --md-surfaceneg1: #121212;
-  --md-surface1: linear-gradient(0deg, #aac7ff0c, #aac7ff0c), var(--md-surface);
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Guilds from "./components/GuildList.vue"
-import Channels from "./components/ChannelList.vue"
+import GuildList from "./components/GuildList.vue"
+import ChannelList from "./components/ChannelList.vue"
 import MainView from "./components/MainView.vue"
 import { useGuildsStore, type Mutation } from "@/stores/guilds"
 import { Go } from "@/assets/wasm_exec.js"
@@ -9,13 +9,8 @@ import { utob, btou, applyMut } from "./util"
 import { useEphemeralStore } from "./stores/ephemeral"
 import { useUserStore } from "./stores/user"
 import { encode, decode } from "@msgpack/msgpack"
-import {
-  stringify as uuidStringify,
-  parse as uuidParse,
-  v4 as uuidV4,
-} from "uuid"
+import { stringify as uuidStringify, parse as uuidParse } from "uuid"
 import type { SocketEvent, EvtData, EvtError, EvtRegister } from "./wsevent"
-import { storeToRefs } from "pinia"
 
 const guilds = useGuildsStore()
 const user = useUserStore()
@@ -86,7 +81,7 @@ WebAssembly.instantiateStreaming(fetch("/tungsten.wasm"), go.importObject).then(
         encode({
           type: 0x06,
           evt: encode({
-            guildIds: [uuidParse("6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b")],
+            guildIds: Object.keys(guilds.guilds).map((v) => uuidParse(v)),
           }),
         })
       )
@@ -124,14 +119,27 @@ WebAssembly.instantiateStreaming(fetch("/tungsten.wasm"), go.importObject).then(
             const mut = JSON.parse(txt) as Mutation
             guilds.latestTs[guild] = timestamp
 
-            applyMut(guilds.guilds[guild], mut)
+            if (
+              guilds.guilds[guild] == undefined &&
+              mut.path == "." &&
+              mut.method == "SET"
+            ) {
+              guilds.guilds[guild] = mut.object
+            } else {
+              applyMut(guilds.guilds[guild], mut)
+            }
           } else {
             // If there is an error, then it is probably because we sent the message,
             // so we should look for any pending mutations
             const mut = ephem.pendingMutations[uuidStringify(evtId)]
             if (mut != undefined) {
               guilds.latestTs[guild] = timestamp
-              applyMut(guilds.guilds[guild], mut)
+
+              if (guilds.guilds[guild] == undefined && mut.path == ".") {
+                guilds.guilds[guild] = mut.object
+              } else {
+                applyMut(guilds.guilds[guild], mut)
+              }
             }
           }
         } else if (event.type == 0x04) {
@@ -164,8 +172,8 @@ WebAssembly.instantiateStreaming(fetch("/tungsten.wasm"), go.importObject).then(
 <template>
   <!-- Unfortunate inline styling due to globablly scoped css -->
   <div style="display: flex; flex-direction: row; height: 100%">
-    <Guilds></Guilds>
-    <Channels></Channels>
+    <GuildList></GuildList>
+    <ChannelList></ChannelList>
     <MainView></MainView>
   </div>
 </template>
@@ -182,7 +190,7 @@ html,
 
 body {
   color: var(--md-on-background);
-  background: var(--md-surface1);
+  background: var(--md-background);
   height: 100%;
   margin: 0;
 }

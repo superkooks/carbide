@@ -26,5 +26,6 @@ const state = reactive({
   background-color: var(--md-surface);
   height: 100%;
   width: 300px;
+  border-right: var(--md-surface-variant) 2px solid;
 }
 </style>

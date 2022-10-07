@@ -75,7 +75,7 @@ export function applyMut(guild: Guild, mut: Mutation) {
   }
 }
 
-export function sendMutation(guildId: string, msg: any) {
+export function sendMutation(guildId: string, msg: Mutation) {
   const store = useGuildsStore()
   const ephem = useEphemeralStore()
 

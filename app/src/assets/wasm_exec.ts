@@ -42,7 +42,7 @@ declare global {
     sendMsg: Function
 
     tungsten: {
-      genTX: () => TxSession
+      genTx: (uuid: string) => TxSession
       importTx: (tx: Uint8Array) => TxSession
 
       // TODO: Remove temp functions

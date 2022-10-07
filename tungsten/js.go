@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"syscall/js"
+
+	"github.com/google/uuid"
 )
 
 // The signatures of all of these functions are available under
@@ -23,7 +25,12 @@ func genGlobalJS() {
 }
 
 func genTxWrapped(this js.Value, args []js.Value) any {
-	return populateTxMethods(GenTx())
+	id, err := uuid.Parse(args[0].String())
+	if err != nil {
+		panic(err)
+	}
+
+	return populateTxMethods(GenTx(id))
 }
 
 func importTxWrapped(this js.Value, args []js.Value) any {
@@ -35,8 +42,8 @@ func importTxWrapped(this js.Value, args []js.Value) any {
 
 // TODO: Remove temp function
 func doubleTxWrapped(this js.Value, args []js.Value) any {
-	alice := GenTx()
-	bob := GenTx()
+	alice := GenTx(uuid.New())
+	bob := GenTx(uuid.New())
 
 	RxFromTx(bob, alice)
 	RxFromTx(alice, bob)
