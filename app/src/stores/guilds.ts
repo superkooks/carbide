@@ -1,3 +1,4 @@
+import { useEphemeralStore } from "@/stores/ephemeral";
 import { defineStore } from "pinia"
 import { utob, btou, deepCopy } from "../util";
 
@@ -56,4 +57,11 @@ export const useGuildsStore = defineStore({
       return JSON.stringify(copy)
     }
   },
+
+  getters: {
+    selectedGuild: (state) => {
+      const ephem = useEphemeralStore()
+      return state.guilds[ephem.selectedGuildId]
+    }
+  }
 })

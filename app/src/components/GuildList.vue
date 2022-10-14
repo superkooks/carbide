@@ -52,7 +52,7 @@ function createGuild() {
           :src="$guilds.state.hostedDomain + guild.icon"
           @click="select"
         /> -->
-        <p class="guildIcon text">
+        <p class="guildIcon text" @click="ephem.selectedGuildId = guild.id">
           {{ guild.name.substring(0, 1) }}
         </p>
 

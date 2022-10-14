@@ -78,7 +78,7 @@ export function applyMut(guild: Guild, mut: Mutation) {
 }
 
 export function sendMutation(guildId: string, channelId: string, msg: Mutation) {
-  const store = useGuildsStore()
+  const guilds = useGuildsStore()
   const ephem = useEphemeralStore()
 
   const evtId = uuidV4()
@@ -90,7 +90,7 @@ export function sendMutation(guildId: string, channelId: string, msg: Mutation) 
       evt: encode({
         guildId: uuidParse(guildId),
         evtId: uuidParse(evtId),
-        message: store.txSessions[guildId].sendMessage(
+        message: guilds.txSessions[guildId].sendMessage(
           channelId,
           new TextEncoder().encode(
             JSON.stringify(msg)

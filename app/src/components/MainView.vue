@@ -13,12 +13,12 @@ const state: {
 })
 
 function dragOver(ev: Event) {
-  if (!(ev instanceof DragEvent)) {
+  if (!(ev instanceof DragEvent) || ev.dataTransfer == null) {
     return
   }
 
   ev.preventDefault()
-  ev.dataTransfer!.dropEffect = "move"
+  ev.dataTransfer.dropEffect = "move"
 
   // Translate mouse position to relative to main view
   const currentRect = (ev.currentTarget as HTMLElement).getBoundingClientRect()
@@ -56,7 +56,7 @@ function dragOver(ev: Event) {
   }
 }
 
-function dragLeave(ev: Event) {
+function dragLeave() {
   state.highlightLeft = false
   state.highlightRight = false
 }
@@ -126,7 +126,7 @@ onMounted(() => {
 
     <div v-if="state.tabs.length == 0" class="help">
       <!-- Show background if there are no tabs -->
-      <p class="help body-large">
+      <p class="help body-large" v-for="i in state.tabs" :key="i[0]">
         Double click or drag a channel to get started
       </p>
     </div>

@@ -6,6 +6,7 @@ export const useEphemeralStore = defineStore({
 
   state: () => ({
     ws: null as WebSocket|null,
-    pendingMutations: {} as {[eventId: string]: Mutation}
+    pendingMutations: {} as {[eventId: string]: Mutation},
+    selectedGuildId: "",
   }),
 })
