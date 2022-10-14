@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useEphemeralStore } from "@/stores/ephemeral"
 import { useGuildsStore } from "@/stores/guilds"
-import { sendMutation } from "../util"
+import { sendMutation, ZERO_UUID } from "../util"
 import { encode } from "@msgpack/msgpack"
 import { parse, v4 } from "uuid"
 import { useUserStore } from "@/stores/user"
@@ -28,7 +28,7 @@ function createGuild() {
   )
 
   // Send initial mutation
-  sendMutation(newGuild, {
+  sendMutation(newGuild, ZERO_UUID, {
     method: "SET",
     path: ".",
     object: {

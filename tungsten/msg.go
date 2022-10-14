@@ -19,18 +19,20 @@ const (
 
 // A normal message containing encrypted data
 type Data struct {
-	SenderID uuid.UUID
-	MsgType  byte
-	Nonce    [24]byte
-	Payload  []byte
+	MsgType   byte
+	SenderID  uuid.UUID
+	RatchetID uuid.UUID
+	Nonce     [24]byte
+	Payload   []byte
 
 	Signature   ECSignature
 	SignaturePQ DiLiSignature
 }
 
 func (m *Data) Marshal(w io.Writer) {
-	w.Write(m.SenderID[:])
 	w.Write([]byte{m.MsgType})
+	w.Write(m.SenderID[:])
+	w.Write(m.RatchetID[:])
 	w.Write(m.Nonce[:])
 	w.Write(m.Payload)
 	w.Write(m.Signature[:])
@@ -51,11 +53,12 @@ func (m *Data) Sign(ed ed25519.PrivateKey, dili mode2.PrivateKey) {
 }
 
 func (m *Data) Unmarshal(r io.Reader) {
-	io.ReadFull(r, m.SenderID[:])
-
 	b := make([]byte, 1)
 	io.ReadFull(r, b)
 	m.MsgType = b[0]
+
+	io.ReadFull(r, m.SenderID[:])
+	io.ReadFull(r, m.RatchetID[:])
 
 	io.ReadFull(r, m.Nonce[:])
 
@@ -69,8 +72,8 @@ func (m *Data) Unmarshal(r io.Reader) {
 
 // A message sent for updating the ratchets of other users
 type RatchetUpdate struct {
-	SenderID    uuid.UUID
 	MsgType     byte
+	SenderID    uuid.UUID
 	NewPubkey   x25519.Key
 	NewPubkeyPQ kyber768.PublicKey
 
@@ -80,16 +83,17 @@ type RatchetUpdate struct {
 	SignaturePQ DiLiSignature
 }
 
-// Part of RatchetUpdate. Addressed per user.
+// Part of RatchetUpdate. Addressed per user & ratchet.
 type UserRatchetUpdate struct {
-	User  uuid.UUID
-	DH    DHKeyCiphertext
-	Kyber KyberKeyCiphertext
+	UserID    uuid.UUID
+	RatchetID uuid.UUID
+	DH        DHKeyCiphertext
+	Kyber     KyberKeyCiphertext
 }
 
 func (m *RatchetUpdate) Marshal(w io.Writer) {
-	w.Write(m.SenderID[:])
 	w.Write([]byte{m.MsgType})
+	w.Write(m.SenderID[:])
 	w.Write(m.NewPubkey[:])
 
 	b := make([]byte, kyber768.PublicKeySize)
@@ -98,7 +102,8 @@ func (m *RatchetUpdate) Marshal(w io.Writer) {
 
 	binary.Write(w, binary.BigEndian, int64(len(m.Updates)))
 	for _, v := range m.Updates {
-		w.Write(v.User[:])
+		w.Write(v.UserID[:])
+		w.Write(v.RatchetID[:])
 		w.Write(v.DH[:])
 		w.Write(v.Kyber[:])
 	}
@@ -121,10 +126,10 @@ func (m *RatchetUpdate) Sign(ed ed25519.PrivateKey, dili mode2.PrivateKey) {
 }
 
 func (m *RatchetUpdate) Unmarshal(r io.Reader) {
-	io.ReadFull(r, m.SenderID[:])
 	b := make([]byte, 1)
 	io.ReadFull(r, b)
 	m.MsgType = b[0]
+	io.ReadFull(r, m.SenderID[:])
 
 	io.ReadFull(r, m.NewPubkey[:])
 
@@ -136,7 +141,8 @@ func (m *RatchetUpdate) Unmarshal(r io.Reader) {
 	binary.Read(r, binary.BigEndian, &l)
 	for i := int64(0); i < l; i++ {
 		v := UserRatchetUpdate{}
-		io.ReadFull(r, v.User[:])
+		io.ReadFull(r, v.UserID[:])
+		io.ReadFull(r, v.RatchetID[:])
 		io.ReadFull(r, v.DH[:])
 		io.ReadFull(r, v.Kyber[:])
 

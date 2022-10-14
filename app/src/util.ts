@@ -4,6 +4,8 @@ import { parse as uuidParse, v4 as uuidV4 } from "uuid"
 import { useEphemeralStore } from "@/stores/ephemeral"
 import { useGuildsStore } from "@/stores/guilds"
 
+export const ZERO_UUID = "00000000-0000-0000-0000-000000000000"
+
 // For some reason, javascript doesn't have any native mechanism to convert bytes to base64
 // or back. I don't know why anyone wants to use this language.
 // 
@@ -75,7 +77,7 @@ export function applyMut(guild: Guild, mut: Mutation) {
   }
 }
 
-export function sendMutation(guildId: string, msg: Mutation) {
+export function sendMutation(guildId: string, channelId: string, msg: Mutation) {
   const store = useGuildsStore()
   const ephem = useEphemeralStore()
 
@@ -89,6 +91,7 @@ export function sendMutation(guildId: string, msg: Mutation) {
         guildId: uuidParse(guildId),
         evtId: uuidParse(evtId),
         message: store.txSessions[guildId].sendMessage(
+          channelId,
           new TextEncoder().encode(
             JSON.stringify(msg)
           )

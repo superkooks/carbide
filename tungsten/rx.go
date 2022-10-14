@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"io"
 
 	"github.com/cloudflare/circl/dh/x25519"
@@ -21,8 +22,7 @@ type RxSession struct {
 	VerifyingPubkey   ed25519.PublicKey
 	VerifyingPubkeyPQ mode2.PublicKey
 
-	Symmetric *SymRatchet
-	Root      *RootRatchet
+	Ratchets []*Ratchet
 
 	CurrentPubkey   x25519.Key
 	CurrentPubkeyPQ kyber768.PublicKey
@@ -47,31 +47,37 @@ func (r *RxSession) ReceiveMessage(msg []byte) []byte {
 	// Switch on message type
 	switch m.MsgType {
 	case MSG_TYPE_DATA:
-		key := r.Symmetric.Advance()
+		for _, v := range r.Ratchets {
+			if v.UUID == m.RatchetID {
+				key := v.Symmetric.Advance()
 
-		plain, ok := secretbox.Open(nil, m.Payload, &m.Nonce, (*[32]byte)(&key))
-		if !ok {
-			panic("failed to verify mac of payload")
+				plain, ok := secretbox.Open(nil, m.Payload, &m.Nonce, (*[32]byte)(&key))
+				if !ok {
+					panic("failed to verify mac of payload")
+				}
+
+				return plain
+			}
 		}
-
-		return plain
 
 	case MSG_TYPE_RATCHET_UPDATE:
 		u := new(RatchetUpdate)
 		u.Unmarshal(bytes.NewBuffer(msg))
 
+		var updates []UserRatchetUpdate
 		for _, v := range u.Updates {
-			if v.User == r.Parent.UUID {
-				r.UpdateSymmetric(u.NewPubkey, u.NewPubkeyPQ, v.DH, v.Kyber)
-				break
+			if v.UserID == r.Parent.UUID {
+				updates = append(updates, v)
 			}
 		}
+
+		r.UpdateSymmetric(u.NewPubkey, u.NewPubkeyPQ, updates)
 	}
 
 	return []byte{}
 }
 
-func (r *RxSession) UpdateSymmetric(newPub x25519.Key, newPubPQ kyber768.PublicKey, dhIn DHKeyCiphertext, kyberIn KyberKeyCiphertext) {
+func (r *RxSession) UpdateSymmetric(newPub x25519.Key, newPubPQ kyber768.PublicKey, updates []UserRatchetUpdate) {
 	// Update current pubkeys
 	r.CurrentPubkey = newPub
 	r.CurrentPubkeyPQ = newPubPQ
@@ -87,32 +93,42 @@ func (r *RxSession) UpdateSymmetric(newPub x25519.Key, newPubPQ kyber768.PublicK
 		panic(err)
 	}
 
-	// Unencapsulate them
-	var encap DHKey
-	var nonce [24]byte
-	copy(nonce[:], dhIn[:])
-	plain, ok := secretbox.Open(nil, dhIn[24:], &nonce, &derived)
-	if !ok {
-		panic("failed to verify mac of encapsulated key")
+	for _, v := range updates {
+		// Unencapsulate them
+		var encap DHKey
+		var nonce [24]byte
+		copy(nonce[:], v.DH[:])
+		plain, ok := secretbox.Open(nil, v.DH[24:], &nonce, &derived)
+		if !ok {
+			panic("failed to verify mac of encapsulated key")
+		}
+		copy(encap[:], plain)
+
+		var encapPQ KyberKey
+		r.Parent.CurrentPrivkeyPQ.DecryptTo(encapPQ[:], v.Kyber[:])
+
+		for _, w := range r.Ratchets {
+			if w.UUID == v.RatchetID {
+				// Advance our root ratchet
+				chain := w.Root.Advance(encap, encapPQ)
+
+				// Generate new symmetric ratchet
+				w.Symmetric = NewSymRatchet(chain)
+			}
+		}
 	}
-	copy(encap[:], plain)
-
-	var encapPQ KyberKey
-	r.Parent.CurrentPrivkeyPQ.DecryptTo(encapPQ[:], kyberIn[:])
-
-	// Advance our root ratchet
-	chain := r.Root.Advance(encap, encapPQ)
-
-	// Generate new symmetric ratchet
-	r.Symmetric = NewSymRatchet(chain)
 }
 
 func (r *RxSession) Export(w io.Writer) {
 	w.Write(r.UUID[:])
 	w.Write(r.VerifyingPubkey)
 	w.Write(r.VerifyingPubkeyPQ.Bytes())
-	w.Write(r.Symmetric.current[:])
-	w.Write(r.Root.current[:])
+	binary.Write(w, binary.BigEndian, int64(len(r.Ratchets)))
+	for _, v := range r.Ratchets {
+		w.Write(v.UUID[:])
+		w.Write(v.Symmetric.current[:])
+		w.Write(v.Root.current[:])
+	}
 	w.Write(r.CurrentPubkey[:])
 
 	curPubPQ := make([]byte, kyber768.PublicKeySize)
@@ -132,13 +148,20 @@ func ImportRx(i io.Reader) *RxSession {
 	i.Read(verPubPQ[:])
 	r.VerifyingPubkeyPQ.Unpack(&verPubPQ)
 
-	var symChain ChainKey
-	i.Read(symChain[:])
-	r.Symmetric = NewSymRatchet(symChain)
+	var ratchetCount int64
+	binary.Read(i, binary.BigEndian, &ratchetCount)
+	for j := 0; j < int(ratchetCount); j++ {
+		var rat Ratchet
+		i.Read(rat.UUID[:])
 
-	var rootChain ChainKey
-	i.Read(rootChain[:])
-	r.Root = NewRootRatchet(rootChain)
+		var symChain ChainKey
+		i.Read(symChain[:])
+		rat.Symmetric = NewSymRatchet(symChain)
+
+		var rootChain ChainKey
+		i.Read(rootChain[:])
+		rat.Root = NewRootRatchet(rootChain)
+	}
 
 	i.Read(r.CurrentPubkey[:])
 

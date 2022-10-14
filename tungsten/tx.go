@@ -23,8 +23,7 @@ type TxSession struct {
 	SigningKey   ed25519.PrivateKey
 	SigningKeyPQ mode2.PrivateKey
 
-	Symmetric *SymRatchet
-	Root      *RootRatchet
+	Ratchets []*Ratchet
 
 	CurrentPrivkey   x25519.Key
 	CurrentPrivkeyPQ kyber768.PrivateKey
@@ -33,12 +32,27 @@ type TxSession struct {
 	Children []*RxSession
 }
 
-func (t *TxSession) SendMessage(msg []byte, w io.Writer) {
-	m := Data{SenderID: t.UUID, MsgType: MSG_TYPE_DATA}
+type Ratchet struct {
+	UUID      uuid.UUID
+	Symmetric *SymRatchet
+	Root      *RootRatchet
+}
+
+func (t *TxSession) SendMessage(ratchet uuid.UUID, msg []byte, w io.Writer) {
+	m := Data{SenderID: t.UUID, RatchetID: ratchet, MsgType: MSG_TYPE_DATA}
 	io.ReadFull(rand.Reader, m.Nonce[:])
 
-	key := t.Symmetric.Advance()
-	m.Payload = secretbox.Seal(nil, msg, &m.Nonce, (*[32]byte)(&key))
+	for _, v := range t.Ratchets {
+		if v.UUID == ratchet {
+			key := v.Symmetric.Advance()
+			m.Payload = secretbox.Seal(nil, msg, &m.Nonce, (*[32]byte)(&key))
+			break
+		}
+	}
+
+	if len(m.Payload) == 0 {
+		panic("couldn't find ratchet for that ratchet id")
+	}
 
 	m.Sign(t.SigningKey, t.SigningKeyPQ)
 	m.Marshal(w)
@@ -60,19 +74,12 @@ func (t *TxSession) ReceiveMessage(msg []byte) ([]byte, error) {
 func (t *TxSession) GenerateUpdate(out io.Writer) {
 	// Generate new keypairs
 	io.ReadFull(rand.Reader, t.CurrentPrivkey[:])
-
 	pub, priv, err := kyber768.GenerateKey(rand.Reader)
 	if err != nil {
 		panic(err)
 	}
 	t.CurrentPrivkeyPQ = *priv
 	t.CurrentPubkeyPQ = *pub
-
-	// Generate random keys
-	var encap DHKey
-	var encapPQ KyberKey
-	io.ReadFull(rand.Reader, encap[:])
-	io.ReadFull(rand.Reader, encapPQ[:])
 
 	// Start message
 	var newPub x25519.Key
@@ -85,45 +92,55 @@ func (t *TxSession) GenerateUpdate(out io.Writer) {
 		NewPubkeyPQ: *pub,
 	}
 
-	// Encrypt keys to each other user
-	for _, v := range t.Children {
-		// Find DH shared secret and derive symmetric key
-		var shared x25519.Key
-		x25519.Shared(&shared, &t.CurrentPrivkey, &v.CurrentPubkey)
+	for _, w := range t.Ratchets {
+		// Generate random keys
+		var encap DHKey
+		var encapPQ KyberKey
+		io.ReadFull(rand.Reader, encap[:])
+		io.ReadFull(rand.Reader, encapPQ[:])
 
-		var derived [32]byte
-		keyReader := hkdf.New(sha256.New, shared[:], nil, DH_HKDF_INFO)
-		_, err = io.ReadFull(keyReader, derived[:])
-		if err != nil {
-			panic(err)
+		// Encrypt keys to each other user
+		for _, v := range t.Children {
+			// Find DH shared secret and derive symmetric key
+			// Note: we generate these shared secrets multiple times, we should optimise this
+			var shared x25519.Key
+			x25519.Shared(&shared, &t.CurrentPrivkey, &v.CurrentPubkey)
+
+			var derived [32]byte
+			keyReader := hkdf.New(sha256.New, shared[:], nil, DH_HKDF_INFO)
+			_, err = io.ReadFull(keyReader, derived[:])
+			if err != nil {
+				panic(err)
+			}
+
+			// Encapsulate them (nonce is prepended to ciphertext)
+			var outDH DHKeyCiphertext
+			var nonce [24]byte
+			io.ReadFull(rand.Reader, nonce[:])
+			copy(outDH[:], nonce[:])
+			ciphertext := secretbox.Seal(nil, encap[:], &nonce, &derived)
+			copy(outDH[24:], ciphertext)
+
+			var outKyber KyberKeyCiphertext
+			var seed [kyber768.EncryptionSeedSize]byte
+			io.ReadFull(rand.Reader, seed[:])
+			v.CurrentPubkeyPQ.EncryptTo(outKyber[:], encapPQ[:], seed[:])
+
+			// Add to message
+			u.Updates = append(u.Updates, UserRatchetUpdate{
+				UserID:    v.UUID,
+				RatchetID: w.UUID,
+				DH:        outDH,
+				Kyber:     outKyber,
+			})
 		}
 
-		// Encapsulate them (nonce is prepended to ciphertext)
-		var outDH DHKeyCiphertext
-		var nonce [24]byte
-		io.ReadFull(rand.Reader, nonce[:])
-		copy(outDH[:], nonce[:])
-		ciphertext := secretbox.Seal(nil, encap[:], &nonce, &derived)
-		copy(outDH[24:], ciphertext)
+		// Advance our root ratchet
+		chain := w.Root.Advance(encap, encapPQ)
 
-		var outKyber KyberKeyCiphertext
-		var seed [kyber768.EncryptionSeedSize]byte
-		io.ReadFull(rand.Reader, seed[:])
-		v.CurrentPubkeyPQ.EncryptTo(outKyber[:], encapPQ[:], seed[:])
-
-		// Add to message
-		u.Updates = append(u.Updates, UserRatchetUpdate{
-			User:  v.UUID,
-			DH:    outDH,
-			Kyber: outKyber,
-		})
+		// Generate new symmetric ratchet
+		w.Symmetric = NewSymRatchet(chain)
 	}
-
-	// Advance our root ratchet
-	chain := t.Root.Advance(encap, encapPQ)
-
-	// Generate new symmetric ratchet
-	t.Symmetric = NewSymRatchet(chain)
 
 	u.Sign(t.SigningKey, t.SigningKeyPQ)
 	u.Marshal(out)
@@ -133,8 +150,14 @@ func (t *TxSession) Export(w io.Writer) {
 	w.Write(t.UUID[:])
 	w.Write(t.SigningKey)
 	w.Write(t.SigningKeyPQ.Bytes())
-	w.Write(t.Symmetric.current[:])
-	w.Write(t.Root.current[:])
+
+	binary.Write(w, binary.BigEndian, int64(len(t.Ratchets)))
+	for _, v := range t.Ratchets {
+		w.Write(v.UUID[:])
+		w.Write(v.Symmetric.current[:])
+		w.Write(v.Root.current[:])
+	}
+
 	w.Write(t.CurrentPrivkey[:])
 
 	privPQ := make([]byte, kyber768.PrivateKeySize)
@@ -163,13 +186,20 @@ func ImportTx(r io.Reader) *TxSession {
 	r.Read(sigPQ[:])
 	t.SigningKeyPQ.Unpack(&sigPQ)
 
-	var symChain ChainKey
-	r.Read(symChain[:])
-	t.Symmetric = NewSymRatchet(symChain)
+	var ratchetCount int64
+	binary.Read(r, binary.BigEndian, &ratchetCount)
+	for i := 0; i < int(ratchetCount); i++ {
+		var rat Ratchet
+		r.Read(rat.UUID[:])
 
-	var rootChain ChainKey
-	r.Read(rootChain[:])
-	t.Root = NewRootRatchet(rootChain)
+		var symChain ChainKey
+		r.Read(symChain[:])
+		rat.Symmetric = NewSymRatchet(symChain)
+
+		var rootChain ChainKey
+		r.Read(rootChain[:])
+		rat.Root = NewRootRatchet(rootChain)
+	}
 
 	r.Read(t.CurrentPrivkey[:])
 

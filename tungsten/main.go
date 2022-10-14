@@ -45,13 +45,16 @@ func GenTx(id uuid.UUID) *TxSession {
 	t := &TxSession{UUID: id}
 
 	// Ratchets
+	r := Ratchet{}
 	var rootRoot ChainKey
 	io.ReadFull(rand.Reader, rootRoot[:])
-	t.Root = NewRootRatchet(rootRoot)
+	r.Root = NewRootRatchet(rootRoot)
 
 	var chainRoot ChainKey
 	io.ReadFull(rand.Reader, chainRoot[:])
-	t.Symmetric = NewSymRatchet(chainRoot)
+	r.Symmetric = NewSymRatchet(chainRoot)
+
+	t.Ratchets = []*Ratchet{&r}
 
 	// Signing keys
 	_, t.SigningKey, _ = ed25519.GenerateKey(rand.Reader)
@@ -76,6 +79,14 @@ func RxFromTx(local, remote *TxSession) {
 	var pub x25519.Key
 	x25519.KeyGen(&pub, &remote.CurrentPrivkey)
 
+	var ratchets []*Ratchet
+	for _, v := range remote.Ratchets {
+		ratchets = append(ratchets, &Ratchet{
+			Root:      NewRootRatchet(v.Root.current),
+			Symmetric: NewSymRatchet(v.Symmetric.current),
+		})
+	}
+
 	local.Children = append(local.Children, &RxSession{
 		Parent: local,
 
@@ -83,8 +94,7 @@ func RxFromTx(local, remote *TxSession) {
 		VerifyingPubkey:   remote.SigningKey.Public().(ed25519.PublicKey),
 		VerifyingPubkeyPQ: *remote.SigningKeyPQ.Public().(*mode2.PublicKey),
 
-		Root:      NewRootRatchet(remote.Root.current),
-		Symmetric: NewSymRatchet(remote.Symmetric.current),
+		Ratchets: ratchets,
 
 		CurrentPubkey:   pub,
 		CurrentPubkeyPQ: remote.CurrentPubkeyPQ,

@@ -57,11 +57,16 @@ func doubleTxWrapped(this js.Value, args []js.Value) any {
 
 func populateTxMethods(tx *TxSession) js.Value {
 	send := func(this js.Value, args []js.Value) any {
-		msg := make([]byte, args[0].Length())
-		js.CopyBytesToGo(msg, args[0])
+		msg := make([]byte, args[1].Length())
+		js.CopyBytesToGo(msg, args[1])
+
+		ratchetID, err := uuid.Parse(args[0].String())
+		if err != nil {
+			panic(err)
+		}
 
 		b := new(bytes.Buffer)
-		tx.SendMessage(msg, b)
+		tx.SendMessage(ratchetID, msg, b)
 
 		out := js.Global().Get("Uint8Array").New(b.Len())
 		js.CopyBytesToJS(out, b.Bytes())

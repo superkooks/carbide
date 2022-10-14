@@ -1,20 +1,22 @@
 = Encryption
 :toc:
 
-== The Tungsten Ratchet
+== Tungsten
 === Background
-The Tungsten Ratchet builds on both Signal's Double Ratchet Algorithm, and Matrix's Megolm Group Ratchet.
+Tungsten builds on both Signal's Double Ratchet Algorithm, and Matrix's Megolm Group Ratchet.
 
-The Double Ratchet Algorithm is unsuitable, as it requires that users encrypt their messages to each recipient in a group, which could be over 1000 people.
+The Double Ratchet Algorithm is unsuitable for our use case, as it requires that users encrypt their messages to each recipient in a group, which could be over 1000 people.
 The Megolm Group Ratchet fixes this by having one outbound ratchet, and many inbound ratchets.
 However, it doesn't have a mechanism for break-in recovery, and only provides "partial" forward secrecy.
 
-The Tungsten Ratchet takes the best from both ratchets.
+The Tungsten Ratchet takes the best from both algorithms.
 It provides break-in recovery and forward secrecy, while maintaining a single outbound session.
+
+Further, Tungsten can provide multiple ratchets per session, allowing for multiple cryptographically separated channels, which in our case allows for cryptographic access control without duplicating any unecessary information. 
 
 === Overview
 Each user maintains an outbound session for encrypting their own messages, and an inbound session for each user.
-Each session contains a root ratchet, a symmetric ratchet, a UUID.
+Each session contains a UUID identifying the sender, and multiple pairs of root ratchets and symmetric ratchets, each with a ratchet UUID.
 A "TX" session additionally contains signing keys (EC and PQ) and key exchange privkeys (EC and PQ).
 A "RX" session additionally contains verifying keys (EC and PQ) and key exchange pubkeys (EC and PQ), which both correspond to the pubkeys of the sender's tx sesion. For each sender, all user's RX sessions should be identical.
 
@@ -30,19 +32,21 @@ Each user has a DH and kyber keypair.
 When a user wants to update the chain/root key of their symmetric ratchet, they take the following steps.
 
 . Generate a new DH and kyber keypair
-. For each user in the group, calculate the shared secret of their current pubkey with our new privkey (dh)
-. For each user in the group, encrypt a new random key with a HKDF derived key from above shared secret (dh) and encrypt a random key using kyber kem.
-. Send a message with our new public key and each encrypted key (labelled with the corresponding recipient) (the message should be signed)
-. Advance the root ratchet with the random keys encrypted with kyber and dh shared secrets (hmac)
-. Use the output from advancing the ratchet as the root key for a new symmetric-key ratchet
+. For each ratchet in the session:
+.. For each user in the group, calculate the shared secret of their current pubkey with our new privkey (dh)
+.. For each user in the group, encrypt a new random key with a HKDF derived key from above shared secret (dh) and encrypt a random key using kyber kem.
+. Send a message with our new public key and each encrypted key (labelled with the corresponding recipient & ratchet) (the message should be signed)
+. For each ratchet, advance its root ratchet with the random keys encrypted with kyber and dh shared secrets (hmac)
+. Use the output from advancing the ratchets as the root key for new symmetric-key ratchets
 
 When a user receives this message, they shall:
 
 . Update the corresponding user's current public keys
 . Calculate the shared secret with our privkey and the received pubkey (kyber & dh)
-. Decrypt the new keys with the the HKDF-derived keys from the shared secrets
-. Advance the root ratchet with the decrypted keys (hmac)
-. Use the output from advancing the ratchet as the root key for a new symmetric-key ratchet
+. For each ratchet:
+.. Decrypt the new keys with the the HKDF-derived keys from the shared secrets
+.. Advance the root ratchet with the decrypted keys (hmac)
+.. Use the output from advancing the ratchet as the root key for a new symmetric-key ratchet
 
 === Session initiation
 In order for a person to be added to a group, they must receive copies of symmetric and root ratchets for each user.
@@ -64,6 +68,7 @@ Session initation requires the following steps:
 The format of normal encrypted data. 
 ----
 UUID:         128-bit UUID of the sender
+RatchetUUID:  128-bit UUID of the ratchet used
 MsgType:      0x00 - Data
 Nonce:        Nonce for encryption of payload
 Payload:      Encrypted payload
@@ -77,6 +82,7 @@ M = UUID || MsgType || Nonce || Payload || Signature || SignaturePQ
 The format of a ratchet update
 ----
 UUID:             128-bit UUID of the targeted user
+RatchetUUID:      128-bit UUID of the ratchet used
 KeyCiphertext:    The ciphertext resulting from the encapsulation of the DH part of the root ratchet update
 KeyCiphertextPQ:  The ciphertext resulting from the encapsulation of the Kyber part of the root ratchet update
 
@@ -86,7 +92,7 @@ Updates[n] = UUID || KeyCiphertext || KeyCiphertextPQ
 UUID:         128-bit UUID of the sender
 MsgType:      0x01 - Ratchet update
 UpdatesLen:   The number of subsequent Update (big endian, 64-bit)
-Updates[]:    A slice (array) of updates (defined above)
+Updates[]:    An array of updates (defined above)
 Signature:    EC signature over all preceding bytes in message
 SignaturePQ:  Post-quantum signature over the same bytes as Signature
 
@@ -94,35 +100,45 @@ M = UUID || MsgType || Pubkey || PubkeyPQ || UpdatesLen || Updates[0] || ... || 
 ----
 
 === Export format
+
+[#export_tx]
 ==== TX Session
 The format of an exported tx session
 ----
-UUID:              128-bit UUID of the tx session
-SigningKey:        EC private key used for signing messages
-SigningKeyPQ:      Post-quantum private key used for signing messages
+UUID:              The UUID of the ratchet
 SymmetricRatchet:  Current chain key of the symmetric ratchet
 RootRatchet:       Current chain key of the root ratchet
-CurPrivkey:        Current DH private key for receiving ratchet updates
-CurPrivkeyPQ:      Current post-quantum private key for receiving ratchet updates
-CurPubkeyPQ:       Current post-quantum public key for receiving ratchet updates
-RxSessionsLen:     The number of subsequent RxSessions (big endian, 64-bit)
-RxSession[n]:      A slice (array) of RxSessions (defined below)
 
-M = UUID || SigningKey || SigningKeyPQ || SymmetricRatchet || RootRatchet || CurPrivkey || CurPrivkeyPQ || CurPubkeyPQ || RxSessionsLen || RxSessions[0] || ... || RxSessions[n-1]
+Ratchet[n] = UUID || SymmetricRatchet || RootRatchet
+----
+----
+UUID:           128-bit UUID of the tx session
+SigningKey:     EC private key used for signing messages
+SigningKeyPQ:   Post-quantum private key used for signing messages
+RatchetCount:   The number of subsequent Ratchet (big endian, 64-bit)
+Ratchet[]:      An array of Ratchets (defined above)
+CurPrivkey:     Current DH private key for receiving ratchet updates
+CurPrivkeyPQ:   Current post-quantum private key for receiving ratchet updates
+CurPubkeyPQ:    Current post-quantum public key for receiving ratchet updates
+RxSessionsLen:  The number of subsequent RxSessions (big endian, 64-bit)
+RxSession[n]:   An array of RxSessions (defined below)
+
+M = UUID || SigningKey || SigningKeyPQ || RatchetCount || Ratchet[0] || ... || Ratchet[n] || CurPrivkey || CurPrivkeyPQ || CurPubkeyPQ || RxSessionsLen || RxSessions[0] || ... || RxSessions[n-1]
 ----
 
 ==== RX Session
 The format of an exported rx session
+[subs=normal]
 ----
-UUID:              128-bit UUID of sender to this rx session
-VerifyingKey:      EC public key used for verifying signed messages
-VerifyingKeyPQ:    Post-quantum public key used for verifying signed messages
-SymmetricRatchet:  Current chain key of the symmetric ratchet
-RootRatchet:       Current chain key of the root ratchet
-CurPubkey:         Current DH public key used for sending ratchet updates
-CurPubkeyPQ:       Current post-quantum public key used for sending ratchet updates
+UUID:            128-bit UUID of sender to this rx session
+VerifyingKey:    EC public key used for verifying signed messages
+VerifyingKeyPQ:  Post-quantum public key used for verifying signed messages
+RatchetCount:    The number of subsequent Ratchet (big endian, 64-bit)
+Ratchet[]:       An array of Ratchets (defined in <<export_tx>>)
+CurPubkey:       Current DH public key used for sending ratchet updates
+CurPubkeyPQ:     Current post-quantum public key used for sending ratchet updates
 
-M = UUID || VerifyingKey || VerifyingKeyPQ || SymmetricRatchet || RootRatchet || CurPubkey || CurPubkeyPQ
+M = UUID || VerifyingKey || VerifyingKeyPQ || RatchetCount || Ratchet[0] || ... || Ratchet[n] || CurPubkey || CurPubkeyPQ
 ----
 
 === Security considerations

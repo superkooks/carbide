@@ -51,7 +51,7 @@ declare global {
   }
 
   interface TxSession {
-    sendMessage: (data: Uint8Array) => Uint8Array
+    sendMessage: (ratchetId: string, data: Uint8Array) => Uint8Array
     receiveMessage: (data: Uint8Array) => {
       msg: Uint8Array,
       error: boolean
