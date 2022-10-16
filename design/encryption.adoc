@@ -27,6 +27,7 @@ Break-in recovery is provided by exchanging new keypairs, as shown in <<_root_ke
 === Symmetric-key ratchet 
 This part describes a symmetric-key ratchet that is an exact copy of the Signal protocol's symmetric-key ratchet.
 
+[#rootratchet]
 === Root-key ratchet
 Each user has a DH and kyber keypair.
 When a user wants to update the chain/root key of their symmetric ratchet, they take the following steps.
@@ -34,7 +35,7 @@ When a user wants to update the chain/root key of their symmetric ratchet, they 
 . Generate a new DH and kyber keypair
 . For each ratchet in the session:
 .. For each user in the group, calculate the shared secret of their current pubkey with our new privkey (dh)
-.. For each user in the group, encrypt a new random key with a HKDF derived key from above shared secret (dh) and encrypt a random key using kyber kem.
+.. For each user in the group, encrypt a new random key with a HKDF derived key from above shared secret (dh) and encrypt a random key using kyber pke.
 . Send a message with our new public key and each encrypted key (labelled with the corresponding recipient & ratchet) (the message should be signed)
 . For each ratchet, advance its root ratchet with the random keys encrypted with kyber and dh shared secrets (hmac)
 . Use the output from advancing the ratchets as the root key for new symmetric-key ratchets
@@ -58,10 +59,14 @@ Instead, the application must make an API call.
 Session initation requires the following steps:
 
 . Each user generates an ephemeral DH and kyber keypair, and uploads their public key to the server
-. Each user retrieves the other's public keys, and hashes all public keys together. Both users then verify they have the same hash. (This prevents MITM attacks)
-. The original user packages up their RX sessions and sends it to the new user, encrypting it with a key derived from the shared secrets of DH and kyber
+. Each user retrieves the other's public keys, and generates a shared secret using both keys, derived in the way as a <<rootratchet,ratchet update>>
+. Both users take the argon2 hash of the public value as well as the shared secret and verify they have the same hash. (This prevents MITM attacks)
+. The original user packages up their RX sessions and sends it to the new user, encrypting it with the shared secret
 . The new user generates a new TX session (including uuid, signing and key exchange keys, and new ratchets) and sends the public values to the original user
 . The original user sends a "create user" message to the group, with the new rx session attached.
+
+The verification of the shared secret uses a slow hash to increase the cost required to bruteforce it, allowing us to truncate the hash for ease of use.
+The hash is converted to 9 groups of 4 base-10 digits.
 
 === Message formats
 ==== Data
@@ -161,11 +166,17 @@ All primitives should have at least 128-bit pre- and post-quantum security.
 |n/a
 |n/a
 
+|KDF for DH shared secrets
+|HKDF
+|golang.org/x/crypto/hkdf
+|256 (preimage resistance)
+|128 (preimage resistance)
+
 |KDF for symmetric ratchet
 |HMAC-SHA256
 |crypto/hmac & crypto/sha256
-|256 (preimage resistance of sha256)
-|128 (preimage resistance of sha256)
+|256 (preimage resistance)
+|128 (preimage resistance)
 
 |Symmetric Encryption
 |XSalsa20 with Poly1305

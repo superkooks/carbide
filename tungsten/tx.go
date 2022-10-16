@@ -122,9 +122,7 @@ func (t *TxSession) GenerateUpdate(out io.Writer) {
 			copy(outDH[24:], ciphertext)
 
 			var outKyber KyberKeyCiphertext
-			var seed [kyber768.EncryptionSeedSize]byte
-			io.ReadFull(rand.Reader, seed[:])
-			v.CurrentPubkeyPQ.EncryptTo(outKyber[:], encapPQ[:], seed[:])
+			v.CurrentPubkeyPQ.EncryptTo(outKyber[:], encapPQ[:], nil)
 
 			// Add to message
 			u.Updates = append(u.Updates, UserRatchetUpdate{

@@ -47,6 +47,14 @@ declare global {
 
       // TODO: Remove temp functions
       doubleTx: () => TxSession[]
+
+      ephem: {
+        // Unless otherwise stated: local=EphemPriv, remote=EphemPub
+        genKeypair: () => {priv: Uint8Array, pub: Uint8Array}
+        genSecret: (local: Uint8Array, remote: Uint8Array) => {ciphertext: Uint8Array, secret: Uint8Array}
+        receiveSecret: (local: Uint8Array, remote: Uint8Array, ciphertext: Uint8Array) => Uint8Array
+        genFingerprint: (local: Uint8Array, remote: Uint8Array) => string
+      }
     }
   }
 

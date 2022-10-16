@@ -105,14 +105,104 @@ func populateTxMethods(tx *TxSession) js.Value {
 		return out
 	}
 
-	obj := js.ValueOf(map[string]interface{}{
+	return js.ValueOf(map[string]interface{}{
 		"sendMessage":    js.FuncOf(send),
 		"receiveMessage": js.FuncOf(receive),
 		"generateUpdate": js.FuncOf(genUpdate),
 		"export":         js.FuncOf(export),
 	})
+}
 
-	return obj
+func populateEphem() js.Value {
+	genKeypair := func(this js.Value, args []js.Value) any {
+		priv, pub := GenEphem()
+
+		privBuf := new(bytes.Buffer)
+		priv.Marshal(privBuf)
+		outPriv := js.Global().Get("Uint8Array").New(privBuf.Len())
+		js.CopyBytesToJS(outPriv, privBuf.Bytes())
+
+		pubBuf := new(bytes.Buffer)
+		pub.Marshal(pubBuf)
+		outPub := js.Global().Get("Uint8Array").New(pubBuf.Len())
+		js.CopyBytesToJS(outPub, pubBuf.Bytes())
+
+		return js.ValueOf(map[string]interface{}{
+			"priv": outPriv,
+			"pub":  outPub,
+		})
+	}
+
+	genSecret := func(this js.Value, args []js.Value) any {
+		localBuf := make([]byte, args[0].Length())
+		js.CopyBytesToGo(localBuf, args[0])
+		local := new(EphemPriv)
+		local.Unmarshal(bytes.NewBuffer(localBuf))
+
+		remoteBuf := make([]byte, args[1].Length())
+		js.CopyBytesToGo(remoteBuf, args[1])
+		remote := new(EphemPub)
+		remote.Unmarshal(bytes.NewBuffer(remoteBuf))
+
+		ctext, secret := GenerateSharedSecret(local, remote)
+
+		cout := js.Global().Get("Uint8Array").New(len(ctext))
+		js.CopyBytesToJS(cout, ctext)
+
+		sout := js.Global().Get("Uint8Array").New(len(secret))
+		js.CopyBytesToJS(sout, secret[:])
+
+		return js.ValueOf(map[string]interface{}{
+			"ciphertext": cout,
+			"secret":     secret,
+		})
+	}
+
+	receiveSecret := func(this js.Value, args []js.Value) any {
+		localBuf := make([]byte, args[0].Length())
+		js.CopyBytesToGo(localBuf, args[0])
+		local := new(EphemPriv)
+		local.Unmarshal(bytes.NewBuffer(localBuf))
+
+		remoteBuf := make([]byte, args[1].Length())
+		js.CopyBytesToGo(remoteBuf, args[1])
+		remote := new(EphemPub)
+		remote.Unmarshal(bytes.NewBuffer(remoteBuf))
+
+		ctext := make([]byte, args[2].Length())
+		js.CopyBytesToGo(ctext, args[2])
+
+		secret := ReceiveSharedSecret(local, remote, ctext)
+
+		sout := js.Global().Get("Uint8Array").New(len(secret))
+		js.CopyBytesToJS(sout, secret[:])
+		return sout
+	}
+
+	genFingerprint := func(this js.Value, args []js.Value) any {
+		localBuf := make([]byte, args[0].Length())
+		js.CopyBytesToGo(localBuf, args[0])
+		local := new(EphemPriv)
+		local.Unmarshal(bytes.NewBuffer(localBuf))
+
+		remoteBuf := make([]byte, args[1].Length())
+		js.CopyBytesToGo(remoteBuf, args[1])
+		remote := new(EphemPub)
+		remote.Unmarshal(bytes.NewBuffer(remoteBuf))
+
+		secret := make([]byte, args[2].Length())
+		js.CopyBytesToGo(secret, args[2])
+
+		fingerprint := GenerateFingerprint(local, remote, secret)
+		return js.ValueOf(fingerprint)
+	}
+
+	return js.ValueOf(map[string]interface{}{
+		"genKeypair":     js.FuncOf(genKeypair),
+		"genSecret":      js.FuncOf(genSecret),
+		"receiveSecret":  js.FuncOf(receiveSecret),
+		"genFingerprint": js.FuncOf(genFingerprint),
+	})
 }
 
 // func populateRxMethods(rx *RxSession) js.Value {
